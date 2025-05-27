@@ -14,29 +14,36 @@ datasource db {
 }
 
 model user {
-  id        Int       @id @default(autoincrement())
-  email     String    @unique
-  password  String
-  firstName String
-  lastName  String
-  role      String
-  isActive  Boolean   @default(true)
-  isChanged Boolean   @default(false)
-  lastLogin DateTime?
-  createdAt DateTime  @default(now())
-  profile   profile[]
+  id         Int       @id @default(autoincrement())
+  email      String    @unique
+  password   String
+  firstName  String
+  lastName   String
+  role       String
+  age        Int?
+  birthdate  DateTime?
+  middleName String?
+  isActive   Boolean   @default(true)
+  isChanged  Boolean   @default(false)
+  lastLogin  DateTime?
+  createdAt  DateTime  @default(now())
+  profile    profile[]
 }
 
 model profile {
   id           Int        @id @default(autoincrement())
   userId       Int?
   user         user?      @relation(fields: [userId], references: [id])
-  address      String?
+  address      String?    @db.Text
   firstName    String?
   lastName     String?
+  middleName   String?
+  age          Int?
+  birthdate    DateTime?
   phoneNumber  String?
   emailAddress String?
-  employeeId   Int?
+  role         String
+  employeeId   String?
   positionId   Int?
   position     positions? @relation(fields: [positionId], references: [id])
   createdAt    DateTime   @default(now())

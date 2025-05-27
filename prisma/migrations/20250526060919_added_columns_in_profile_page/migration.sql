@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE `profile` ADD COLUMN `age` INTEGER NULL,
+    ADD COLUMN `birthdate` DATETIME(3) NULL,
+    ADD COLUMN `middleName` VARCHAR(191) NULL,
+    ADD COLUMN `role` VARCHAR(191) NULL;
