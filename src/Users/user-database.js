@@ -160,6 +160,11 @@ async function updateProfile(userId, profileData) {
     if (profileData.hasOwnProperty("age"))
       userDataToUpdate.age = profileData.age ? Number(profileData.age) : null;
 
+    // Add email update if present in profileData
+    if (profileData.hasOwnProperty("emailAddress")) {
+      userDataToUpdate.email = profileData.emailAddress;
+    }
+
     console.log("[updateProfile] userDataToUpdate:", userDataToUpdate);
     console.log(
       "[updateProfile] Type of birthdate in userDataToUpdate:",
@@ -184,6 +189,9 @@ async function updateProfile(userId, profileData) {
     delete profileDataToUpdate.role;
     delete profileDataToUpdate.birthdate;
     delete profileDataToUpdate.age;
+
+    // Delete emailAddress from profileDataToUpdate if it was there
+    delete profileDataToUpdate.emailAddress;
 
     if (Object.keys(profileDataToUpdate).length > 0) {
       const updatedProfile = await prisma.profile.update({

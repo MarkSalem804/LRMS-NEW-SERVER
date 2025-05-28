@@ -44,6 +44,8 @@ async function login(email, password) {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        isActive: user.isActive,
+        isChanged: user.isChanged,
         profile: user.profile,
       },
       // token,

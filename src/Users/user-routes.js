@@ -173,7 +173,7 @@ userRouter.put("/updateProfile/:id", async (req, res) => {
 userRouter.patch("/changePassword/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const newPassword = req.body.password;
+    const newPassword = req.body.newPassword;
     const updatedUser = await userService.changePassword(id, newPassword);
     return res.status(200).json({
       success: true,
