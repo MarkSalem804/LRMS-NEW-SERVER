@@ -118,6 +118,23 @@ userRouter.get("/getAllUsers", async (req, res) => {
   }
 });
 
+userRouter.get("/getUserProfile/:id", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const fetchedData = await userService.userProfile(id);
+    return res.status(200).json({
+      success: true,
+      message: "User Profile fetched successfully",
+      data: fetchedData,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
 userRouter.delete("/deleteUser/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -182,6 +199,33 @@ userRouter.patch("/changePassword/:id", async (req, res) => {
     });
   } catch (error) {
     return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+userRouter.post("/resetPassword", async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    if (!email || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and new password are required",
+      });
+    }
+
+    const result = await userService.resetPassword(email, newPassword);
+
+    return res.status(200).json({
+      success: true,
+      message: "Password reset successfully",
+      data: result,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
       success: false,
       message: error.message,
     });

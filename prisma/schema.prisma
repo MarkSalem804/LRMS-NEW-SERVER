@@ -60,17 +60,117 @@ model positions {
 }
 
 model learningAreas {
-  id          Int      @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   name        String
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  materials   materials[]
 }
 
 model gradeLevels {
-  id          Int      @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   name        String?
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  materials   materials[]
+}
+
+model materials {
+  id             Int            @id @default(autoincrement())
+  title          String?
+  gradeLevelId   Int?
+  gradeLevel     gradeLevels?   @relation(fields: [gradeLevelId], references: [id])
+  learningAreaId Int?
+  learningArea   learningAreas? @relation(fields: [learningAreaId], references: [id])
+  description    String?
+  uploadedAt     DateTime
+  downloads      Int?
+  rating         Float?
+  intendedUsers  String?
+  topic          String?
+  language       String?
+  objective      String?
+  educationType  String?
+  track          track?         @relation(fields: [trackId], references: [id])
+  trackId        Int?
+  component      component?     @relation(fields: [componentId], references: [id])
+  componentId    Int?
+  strand         strand?        @relation(fields: [strandId], references: [id])
+  strandId       Int?
+  type           type?          @relation(fields: [typeId], references: [id])
+  typeId         Int?
+  subjectType    subjectType?   @relation(fields: [subjectTypeId], references: [id])
+  subjectTypeId  Int?
+}
+
+model subjectType {
+  id        Int         @id @default(autoincrement())
+  name      String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  materials materials[]
+}
+
+model track {
+  id                  Int                   @id @default(autoincrement())
+  name                String
+  description         String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  materials           materials[]
+  strand              strand[]
+  specializedSubjects specializedSubjects[]
+  appliedSubjects     appliedSubjects[]
+}
+
+model component {
+  id          Int         @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  materials   materials[]
+}
+
+model strand {
+  id                  Int                   @id @default(autoincrement())
+  name                String
+  trackId             Int?
+  track               track?                @relation(fields: [trackId], references: [id])
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  materials           materials[]
+  specializedSubjects specializedSubjects[]
+}
+
+model type {
+  id          Int         @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  materials   materials[]
+}
+
+model specializedSubjects {
+  id       Int     @id @default(autoincrement())
+  name     String?
+  trackId  Int?
+  strandId Int?
+  strand   strand? @relation(fields: [strandId], references: [id])
+  track    track?  @relation(fields: [trackId], references: [id])
+}
+
+model appliedSubjects {
+  id      Int     @id @default(autoincrement())
+  name    String?
+  trackId Int?
+  track   track?  @relation(fields: [trackId], references: [id])
+}
+
+model coreSubjects {
+  id   Int     @id @default(autoincrement())
+  name String?
 }

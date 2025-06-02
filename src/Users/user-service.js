@@ -1,7 +1,7 @@
 const bcrypt = require("bcryptjs");
 // const jwt = require("jsonwebtoken");
 const userDAO = require("./user-database");
-console.log("userData exports:", userDAO);
+const sendEmail = require("../Middlewares/sendEmail");
 
 async function login(email, password) {
   try {
@@ -149,7 +149,45 @@ async function changePassword(userId, newPassword) {
   }
 }
 
+async function resetPassword(email, newPassword) {
+  try {
+    const user = await userDAO.findUserByEmail(email);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    const updatedUser = await userDAO.changePassword(user.id, newPassword);
+
+    // Send email notification
+    const emailSubject = "Your Password Has Been Reset";
+    const emailBody = `
+      <p>Hello ${user.firstName},</p>
+      <p>Your password for your account has been successfully reset. Below is your new password</p>
+      <p><strong style="font-size: 1.5em;">${newPassword}</strong></p>
+      <p>Please log in with your new password.</p>
+      <p>If you did not request this change, please contact support immediately.</p>
+      <p>Thank you.</p>
+    `;
+    await sendEmail(user.email, emailSubject, emailBody);
+
+    return updatedUser;
+  } catch (error) {
+    console.error("[resetPassword] Error:", error);
+    throw new Error("Error resetting password: " + error.message);
+  }
+}
+
+async function userProfile(id) {
+  try {
+    const profile = await userDAO.getProfileByUserId(id);
+    return profile;
+  } catch (error) {
+    console.error("[resetPassword] Error:", error);
+    throw new Error("Error getting user profile" + error.message);
+  }
+}
+
 module.exports = {
+  userProfile,
   getAllUsers,
   register,
   login,
@@ -157,4 +195,5 @@ module.exports = {
   updateUser,
   updateProfile,
   changePassword,
+  resetPassword,
 };

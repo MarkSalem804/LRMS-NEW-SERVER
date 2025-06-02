@@ -107,9 +107,6 @@ async function updateUser(id, userData) {
 
 async function updateProfile(userId, profileData) {
   try {
-    console.log("[updateProfile] Received userId:", userId);
-    console.log("[updateProfile] Received profileData:", profileData);
-
     // Find the user by userId and include the profile
     const userWithProfile = await prisma.user.findUnique({
       where: { id: userId },
@@ -165,12 +162,6 @@ async function updateProfile(userId, profileData) {
       userDataToUpdate.email = profileData.emailAddress;
     }
 
-    console.log("[updateProfile] userDataToUpdate:", userDataToUpdate);
-    console.log(
-      "[updateProfile] Type of birthdate in userDataToUpdate:",
-      typeof userDataToUpdate.birthdate
-    );
-
     // Update the user table with relevant data from profileData
     if (Object.keys(userDataToUpdate).length > 0) {
       await prisma.user.update({
@@ -198,10 +189,6 @@ async function updateProfile(userId, profileData) {
         where: { id: profileId },
         data: profileDataToUpdate,
       });
-      console.log(
-        "[updateProfile] Profile table updated successfully:",
-        updatedProfile
-      );
     }
 
     // Re-fetch the user with updated profile data to return
@@ -234,7 +221,22 @@ async function changePassword(userId, newPassword) {
   }
 }
 
+async function getProfileByUserId(id) {
+  try {
+    const profileData = await prisma.profile.findFirst({
+      where: {
+        userId: id,
+      },
+    });
+    return profileData;
+  } catch (error) {
+    console.error("[changePassword] Error:", error);
+    throw new Error("Error changing password: " + error.message);
+  }
+}
+
 module.exports = {
+  getProfileByUserId,
   deleteUser,
   getUsers,
   createUser,
