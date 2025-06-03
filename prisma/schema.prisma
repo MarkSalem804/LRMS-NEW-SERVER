@@ -103,6 +103,8 @@ model materials {
   typeId         Int?
   subjectType    subjectType?   @relation(fields: [subjectTypeId], references: [id])
   subjectTypeId  Int?
+  materialPath   String?
+  fileName       String?
 }
 
 model subjectType {

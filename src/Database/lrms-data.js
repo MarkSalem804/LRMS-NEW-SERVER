@@ -86,7 +86,18 @@ async function createSubjectType(data) {
   }
 }
 
+async function getAllMaterials() {
+  try {
+    const data = await prisma.materials.findMany();
+    return data;
+  } catch (error) {
+    console.error("Error fetching materials!", error);
+    return { success: false, error: error.message };
+  }
+}
+
 module.exports = {
+  getAllMaterials,
   saveMaterialsToDatabase,
   createGradeLevels,
   createLearningAreas,

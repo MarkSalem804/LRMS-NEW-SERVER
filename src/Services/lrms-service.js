@@ -63,7 +63,7 @@ const parseExcelFile = async (filePath) => {
       return map;
     }, {});
 
-    const materialsData = data.map((row) => {
+    const materialsDataForSave = data.map((row) => {
       // Accessing data using bracket notation to handle headers with spaces
       // Assuming Excel column headers match these names (case-sensitive)
       const title = row["Title"];
@@ -110,15 +110,68 @@ const parseExcelFile = async (filePath) => {
       };
     });
 
-    // Filter out any materials that might not have a title or other required fields if necessary
-    const validMaterials = materialsData.filter((material) => material.title);
+    const materialsDataForResponse = data.map((row) => {
+      // Accessing data using bracket notation to handle headers with spaces
+      // Assuming Excel column headers match these names (case-sensitive)
+      const title = row["Title"];
+      const description = row["Description"];
+      const downloads = row["Downloads"];
+      const rating = row["Rating"];
+      const uploadedAt = row["Uploaded At"]; // Assuming 'Uploaded At' header
+      const intendedUsers = row["Intended Users"]; // Using 'Intended Users' as requested
+      const topic = row["Topic"];
+      const language = row["Language"];
+      const objective = row["Objective"];
+      const educationType = row["Education Type"]; // Assuming 'Education Type' header
 
-    if (validMaterials.length > 0) {
-      const saveResult = await lrmsData.saveMaterialsToDatabase(validMaterials);
+      const gradeLevelName = row["Grade Level"];
+      const learningAreaName = row["Learning Area"];
+      const trackName = row["Track"];
+      const componentName = row["Component"];
+      const strandName = row["Strand"];
+      const typeName = row["Type"];
+      const subjectTypeName = row["Subject Type"];
+
+      return {
+        title: title,
+        description: description,
+        downloads: downloads ? parseInt(downloads) : undefined,
+        rating: rating ? parseFloat(rating) : undefined,
+        uploadedAt: uploadedAt ? new Date(uploadedAt) : new Date(), // Use 'Uploaded At' or current date
+        intendedUsers: intendedUsers,
+        topic: topic,
+        language: language,
+        objective: objective,
+        educationType: educationType,
+
+        // Include names in the response data
+        gradeLevelName: gradeLevelName || null,
+        learningAreaName: learningAreaName || null,
+        trackName: trackName || null,
+        componentName: componentName || null,
+        subjectTypeName: subjectTypeName || null,
+        strandName: strandName || null,
+        typeName: typeName || null,
+      };
+    });
+
+    // Filter out any materials that might not have a title or other required fields if necessary
+    const validMaterialsForSave = materialsDataForSave.filter(
+      (material) => material.title
+    );
+    const validMaterialsForResponse = materialsDataForResponse.filter(
+      (material) => material.title
+    );
+
+    if (validMaterialsForSave.length > 0) {
+      const saveResult = await lrmsData.saveMaterialsToDatabase(
+        validMaterialsForSave
+      );
       return {
         success: true,
         message: "File parsed and data saved successfully",
         count: saveResult.count,
+        data: validMaterialsForResponse, // Return data with names
       };
     } else {
       return {
@@ -212,7 +265,124 @@ async function createSubjectType(data) {
   }
 }
 
+async function updateMaterialWithFile(materialId, materialPath, fileName) {
+  try {
+    const updatedMaterial = await prisma.materials.update({
+      where: { id: materialId },
+      data: {
+        materialPath: materialPath,
+        fileName: fileName,
+      },
+      include: {
+        gradeLevel: true,
+        learningArea: true,
+        track: true,
+        component: true,
+        strand: true,
+        type: true,
+        subjectType: true,
+      },
+    });
+
+    // Construct the response object with desired fields and names, explicitly excluding related entity ID fields
+    const responseMaterial = {
+      id: updatedMaterial.id, // Keep the material's own ID
+      title: updatedMaterial.title,
+      description: updatedMaterial.description,
+      uploadedAt: updatedMaterial.uploadedAt,
+      downloads: updatedMaterial.downloads,
+      rating: updatedMaterial.rating,
+      intendedUsers: updatedMaterial.intendedUsers,
+      topic: updatedMaterial.topic,
+      language: updatedMaterial.language,
+      objective: updatedMaterial.objective,
+      educationType: updatedMaterial.educationType,
+      materialPath: updatedMaterial.materialPath,
+      fileName: updatedMaterial.fileName,
+      // Include names from the related entities and explicitly exclude their ID fields
+      gradeLevelName: updatedMaterial.gradeLevel
+        ? updatedMaterial.gradeLevel.name
+        : null,
+      learningAreaName: updatedMaterial.learningArea
+        ? updatedMaterial.learningArea.name
+        : null,
+      trackName: updatedMaterial.track ? updatedMaterial.track.name : null,
+      componentName: updatedMaterial.component
+        ? updatedMaterial.component.name
+        : null,
+      strandName: updatedMaterial.strand ? updatedMaterial.strand.name : null,
+      typeName: updatedMaterial.type ? updatedMaterial.type.name : null,
+      subjectTypeName: updatedMaterial.subjectType
+        ? updatedMaterial.subjectType.name
+        : null,
+    };
+
+    return {
+      success: true,
+      message: "Material updated successfully with file info.",
+      material: responseMaterial,
+    };
+  } catch (error) {
+    console.error("Error updating material with file info:", error);
+    return {
+      success: false,
+      message: "Failed to update material with file info.",
+      error: error.message,
+    };
+  }
+}
+
+async function fetchAllMaterials() {
+  try {
+    const materials = await prisma.materials.findMany({
+      include: {
+        // Include related models to get their names
+        gradeLevel: true,
+        learningArea: true,
+        track: true,
+        component: true,
+        strand: true,
+        type: true,
+        subjectType: true,
+      },
+    });
+
+    // Map the result to include names and exclude IDs for related entities
+    const materialsWithNames = materials.map((material) => ({
+      id: material.id,
+      title: material.title,
+      description: material.description,
+      uploadedAt: material.uploadedAt,
+      downloads: material.downloads,
+      rating: material.rating,
+      intendedUsers: material.intendedUsers,
+      topic: material.topic,
+      language: material.language,
+      objective: material.objective,
+      educationType: material.educationType,
+      materialPath: material.materialPath,
+      fileName: material.fileName,
+      // Include names from related entities
+      gradeLevelName: material.gradeLevel ? material.gradeLevel.name : null,
+      learningAreaName: material.learningArea
+        ? material.learningArea.name
+        : null,
+      trackName: material.track ? material.track.name : null,
+      componentName: material.component ? material.component.name : null,
+      strandName: material.strand ? material.strand.name : null,
+      typeName: material.type ? material.type.name : null,
+      subjectTypeName: material.subjectType ? material.subjectType.name : null,
+    }));
+
+    return materialsWithNames;
+  } catch (error) {
+    console.error("Error fetching materials:", error);
+    throw new Error("Failed to fetch materials");
+  }
+}
+
 module.exports = {
+  fetchAllMaterials,
   parseExcelFile,
   createGradeLevels,
   createLearningAreas,
@@ -221,5 +391,6 @@ module.exports = {
   createStrands,
   createTypes,
   createSubjectType,
+  updateMaterialWithFile,
   // export other service functions here
 };
