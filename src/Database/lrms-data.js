@@ -8,7 +8,6 @@ const saveMaterialsToDatabase = async (materialsData) => {
       data: materialsData,
       skipDuplicates: true, // Optional: skip rows that would cause unique constraint violations
     });
-    console.log(`Saved ${result.count} materials to the database.`);
     return { success: true, count: result.count };
   } catch (error) {
     console.error("Error saving materials to database:", error);

@@ -5,6 +5,86 @@ const path = require("path");
 const fs = require("fs");
 const lrmsData = require("../Database/lrms-data");
 
+// Function to check for duplicate materials
+const checkDuplicateMaterials = async (materialsData) => {
+  try {
+    const duplicates = [];
+    const nonDuplicates = [];
+
+    // Get all existing materials from the database
+    const existingMaterials = await prisma.materials.findMany({
+      select: {
+        id: true,
+        title: true,
+        gradeLevelId: true,
+        gradeLevel: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Check each new material against existing ones
+    for (const newMaterial of materialsData) {
+      const existingDuplicate = existingMaterials.find(
+        (existing) =>
+          existing.title.toLowerCase() === newMaterial.title.toLowerCase() &&
+          existing.gradeLevelId === newMaterial.gradeLevelId
+      );
+
+      if (existingDuplicate) {
+        duplicates.push({
+          title: newMaterial.title,
+          gradeLevel: existingDuplicate.gradeLevel.name,
+          existingId: existingDuplicate.id,
+        });
+      } else {
+        nonDuplicates.push(newMaterial);
+      }
+    }
+
+    return {
+      success: true,
+      message:
+        duplicates.length > 0
+          ? "Some duplicates found and will be skipped"
+          : "No duplicates found",
+      duplicates: duplicates,
+      nonDuplicates: nonDuplicates,
+      totalDuplicates: duplicates.length,
+      totalNonDuplicates: nonDuplicates.length,
+    };
+  } catch (error) {
+    console.error("Error checking for duplicates:", error);
+    return {
+      success: false,
+      message: "Error checking for duplicates",
+      error: error.message,
+    };
+  }
+};
+
+// Function to insert materials after duplicate check
+const insertMaterials = async (materialsData) => {
+  try {
+    const saveResult = await lrmsData.saveMaterialsToDatabase(materialsData);
+    return {
+      success: true,
+      message: "Materials saved successfully",
+      count: saveResult.count,
+      data: materialsData,
+    };
+  } catch (error) {
+    console.error("Error saving materials:", error);
+    return {
+      success: false,
+      message: "Error saving materials",
+      error: error.message,
+    };
+  }
+};
+
 const parseExcelFile = async (filePath) => {
   try {
     const workbook = xlsx.readFile(filePath);
@@ -13,7 +93,7 @@ const parseExcelFile = async (filePath) => {
 
     const data = xlsx.utils.sheet_to_json(worksheet);
 
-    console.log("Parsed Excel data:", data);
+    // console.log("Parsed Excel data:", data);
 
     // Fetch existing related data and create lookup maps
     const [
@@ -164,14 +244,11 @@ const parseExcelFile = async (filePath) => {
     );
 
     if (validMaterialsForSave.length > 0) {
-      const saveResult = await lrmsData.saveMaterialsToDatabase(
-        validMaterialsForSave
-      );
       return {
         success: true,
-        message: "File parsed and data saved successfully",
-        count: saveResult.count,
-        data: validMaterialsForResponse, // Return data with names
+        message: "File parsed successfully",
+        data: validMaterialsForSave,
+        responseData: validMaterialsForResponse,
       };
     } else {
       return {
@@ -180,7 +257,7 @@ const parseExcelFile = async (filePath) => {
       };
     }
   } catch (error) {
-    console.error("Error parsing and saving Excel file:", error);
+    console.error("Error parsing Excel file:", error);
     return {
       success: false,
       message: "Error processing file",
@@ -190,7 +267,7 @@ const parseExcelFile = async (filePath) => {
     // Clean up the uploaded file
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
-      console.log(`Deleted temporary file: ${filePath}`);
+      // console.log(`Deleted temporary file: ${filePath}`);
     }
   }
 };
@@ -381,9 +458,77 @@ async function fetchAllMaterials() {
   }
 }
 
+async function getMaterialWithFile(materialId) {
+  try {
+    const material = await prisma.materials.findUnique({
+      where: { id: materialId },
+      include: {
+        gradeLevel: true,
+        learningArea: true,
+        track: true,
+        component: true,
+        strand: true,
+        type: true,
+        subjectType: true,
+      },
+    });
+
+    if (!material) {
+      return {
+        success: false,
+        message: "Material not found",
+      };
+    }
+
+    // Log the material path for debugging
+    // console.log("Material file path:", material.materialPath);
+
+    // Construct the response object with desired fields and names
+    const responseMaterial = {
+      id: material.id,
+      title: material.title,
+      description: material.description,
+      uploadedAt: material.uploadedAt,
+      downloads: material.downloads,
+      rating: material.rating,
+      intendedUsers: material.intendedUsers,
+      topic: material.topic,
+      language: material.language,
+      objective: material.objective,
+      educationType: material.educationType,
+      materialPath: material.materialPath,
+      fileName: material.fileName,
+      // Include names from related entities
+      gradeLevelName: material.gradeLevel ? material.gradeLevel.name : null,
+      learningAreaName: material.learningArea
+        ? material.learningArea.name
+        : null,
+      trackName: material.track ? material.track.name : null,
+      componentName: material.component ? material.component.name : null,
+      strandName: material.strand ? material.strand.name : null,
+      typeName: material.type ? material.type.name : null,
+      subjectTypeName: material.subjectType ? material.subjectType.name : null,
+    };
+
+    return {
+      success: true,
+      message: "Material retrieved successfully",
+      material: responseMaterial,
+    };
+  } catch (error) {
+    console.error("Error retrieving material:", error);
+    return {
+      success: false,
+      message: "Failed to retrieve material",
+      error: error.message,
+    };
+  }
+}
+
 module.exports = {
-  fetchAllMaterials,
   parseExcelFile,
+  checkDuplicateMaterials,
+  insertMaterials,
   createGradeLevels,
   createLearningAreas,
   createTracks,
@@ -392,5 +537,6 @@ module.exports = {
   createTypes,
   createSubjectType,
   updateMaterialWithFile,
-  // export other service functions here
+  fetchAllMaterials,
+  getMaterialWithFile,
 };

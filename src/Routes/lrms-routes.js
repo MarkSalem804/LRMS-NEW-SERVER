@@ -2,6 +2,8 @@ const express = require("express");
 const lrmsRouter = express.Router();
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" }); // Temporary destination for uploaded files
+const path = require("path");
+const fs = require("fs");
 
 // Multer configuration for material file uploads
 const materialStorage = multer.diskStorage({
@@ -30,7 +32,44 @@ lrmsRouter.post(
     const filePath = req.file.path;
 
     try {
-      const result = await lrmsService.parseExcelFile(filePath);
+      // First, parse the Excel file to get the materials data
+      const parseResult = await lrmsService.parseExcelFile(filePath);
+
+      if (!parseResult.success) {
+        return res.status(500).json({
+          success: false,
+          message: parseResult.message,
+          error: parseResult.error,
+        });
+      }
+
+      // Check for duplicates in the parsed data
+      const duplicateCheckResult = await lrmsService.checkDuplicateMaterials(
+        parseResult.data
+      );
+
+      if (!duplicateCheckResult.success) {
+        return res.status(500).json({
+          success: false,
+          message: "Error checking for duplicates",
+          error: duplicateCheckResult.error,
+        });
+      }
+
+      // If there are no non-duplicate materials to upload, return early
+      if (duplicateCheckResult.nonDuplicates.length === 0) {
+        return res.status(200).json({
+          success: true,
+          message: "No new materials to upload. All materials were duplicates.",
+          duplicates: duplicateCheckResult.duplicates,
+          totalDuplicates: duplicateCheckResult.totalDuplicates,
+        });
+      }
+
+      // Insert only the non-duplicate materials
+      const result = await lrmsService.insertMaterials(
+        duplicateCheckResult.nonDuplicates
+      );
 
       if (result.success) {
         res.status(200).json({
@@ -38,6 +77,9 @@ lrmsRouter.post(
           message: result.message,
           count: result.count,
           data: result.data,
+          duplicates: duplicateCheckResult.duplicates,
+          totalDuplicates: duplicateCheckResult.totalDuplicates,
+          totalUploaded: duplicateCheckResult.totalNonDuplicates,
         });
       } else {
         res.status(500).json({
@@ -210,6 +252,148 @@ lrmsRouter.get("/getAllMaterials", async (req, res) => {
     return res.status(400).json({
       success: false,
       message: error.message,
+    });
+  }
+});
+
+// Add new route for viewing material files
+lrmsRouter.get("/view-material/:materialId", async (req, res) => {
+  const materialId = parseInt(req.params.materialId, 10);
+  const title = req.query.title || "Material";
+
+  if (isNaN(materialId)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid material ID provided.",
+    });
+  }
+
+  try {
+    // Get material details including file path
+    const material = await lrmsService.getMaterialWithFile(materialId);
+
+    if (!material.success) {
+      return res.status(404).json({
+        success: false,
+        message: "Material not found or has no file attached.",
+      });
+    }
+
+    const filePath = material.material.materialPath;
+    const fileName = material.material.fileName;
+
+    // Check if file exists
+    if (!filePath || !fileName) {
+      return res.status(404).json({
+        success: false,
+        message: "No file found for this material.",
+      });
+    }
+
+    // Get the file extension
+    const ext = path.extname(fileName).toLowerCase();
+
+    // Set appropriate content type based on file extension
+    let contentType = "application/octet-stream";
+    switch (ext) {
+      case ".pdf":
+        contentType = "application/pdf";
+        break;
+      case ".doc":
+        contentType = "application/msword";
+        break;
+      case ".docx":
+        contentType =
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        break;
+      case ".xls":
+        contentType = "application/vnd.ms-excel";
+        break;
+      case ".xlsx":
+        contentType =
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        break;
+      case ".ppt":
+        contentType = "application/vnd.ms-powerpoint";
+        break;
+      case ".pptx":
+        contentType =
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+        break;
+      case ".jpg":
+      case ".jpeg":
+        contentType = "image/jpeg";
+        break;
+      case ".png":
+        contentType = "image/png";
+        break;
+      case ".gif":
+        contentType = "image/gif";
+        break;
+      case ".txt":
+        contentType = "text/plain";
+        break;
+    }
+
+    // Convert relative path to absolute path
+    const absolutePath = path.resolve(filePath);
+
+    // Check if file exists before sending
+    if (!fs.existsSync(absolutePath)) {
+      return res.status(404).json({
+        success: false,
+        message: "File not found on server.",
+      });
+    }
+
+    // Set headers for viewing
+    res.set({
+      "Content-Type": contentType,
+      "Content-Disposition": `inline; filename="${title}${ext}"`,
+      "X-File-Name": `${title}${ext}`,
+    });
+
+    // Send the file
+    res.sendFile(absolutePath, (err) => {
+      if (err) {
+        console.error("Error sending file:", err);
+        // If the response has already been sent, we can't send another response
+        if (!res.headersSent) {
+          res.status(500).json({
+            success: false,
+            message: "Error sending file.",
+          });
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Error in view-material route:", error);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while retrieving the material file.",
+    });
+  }
+});
+
+// Add new route for getting material details
+lrmsRouter.get("/get-material/:materialId", async (req, res) => {
+  const materialId = parseInt(req.params.materialId, 10);
+
+  if (isNaN(materialId)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid material ID provided.",
+    });
+  }
+
+  try {
+    const material = await lrmsService.getMaterialWithFile(materialId);
+    res.status(200).json(material);
+  } catch (error) {
+    console.error("Error in get-material route:", error);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while retrieving the material details.",
     });
   }
 });
