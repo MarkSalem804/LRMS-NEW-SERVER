@@ -28,6 +28,8 @@ model user {
   lastLogin  DateTime?
   createdAt  DateTime  @default(now())
   profile    profile[]
+  otpCode    String?
+  otpExpiry  DateTime?
 }
 
 model profile {

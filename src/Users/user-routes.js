@@ -71,30 +71,56 @@ userRouter.post("/register", async (req, res) => {
 userRouter.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    // Validate request body
     if (!email || !password) {
       return res.status(400).json({
         success: false,
         message: "Email and password are required",
       });
     }
-
-    // Call login service
+    // Call login service (now returns requires2FA)
     const result = await userService.login(email, password);
 
+    // If requires2FA, do not emit event or return user data yet
+    if (result.requires2FA) {
+      return res.status(200).json({
+        success: true,
+        message: "OTP sent to your email",
+        data: result,
+      });
+    }
+
+    // (If you want to support fallback to old login, keep this, else remove)
     emitEvent("user-just-logged-in", {
       email: result.user.email,
     });
 
-    // Return success response
     return res.status(200).json({
       success: true,
       message: "Login successful",
       data: result,
     });
   } catch (error) {
-    // Return error response
+    return res.status(401).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+userRouter.post("/verify-otp", async (req, res) => {
+  try {
+    const { email, otpCode } = req.body;
+    const result = await userService.verifyOtp(email, otpCode);
+    // You may want to emit the login event here
+    emitEvent("user-just-logged-in", {
+      email: result.user.email,
+    });
+    return res.status(200).json({
+      success: true,
+      message: "OTP verified successfully",
+      data: result,
+    });
+  } catch (error) {
     return res.status(401).json({
       success: false,
       message: error.message,

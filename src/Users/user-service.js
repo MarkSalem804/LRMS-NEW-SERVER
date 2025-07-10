@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 // const jwt = require("jsonwebtoken");
 const userDAO = require("./user-database");
 const sendEmail = require("../Middlewares/sendEmail");
+const crypto = require("crypto");
 
 async function login(email, password) {
   try {
@@ -22,37 +23,46 @@ async function login(email, password) {
       throw new Error("Invalid password");
     }
 
-    // Update last login
-    await userDAO.updateLastLogin(user.id);
+    // Generate OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 min
 
-    // Generate JWT token
-    // const token = jwt.sign(
-    //   {
-    //     userId: user.id,
-    //     email: user.email,
-    //     role: user.role,
-    //   },
-    //   process.env.JWT_SECRET,
-    //   { expiresIn: "24h" }
-    // );
+    await userDAO.setUserOTP(email, otpCode, otpExpiry);
 
-    // Return user data and token
+    // Send OTP email
+    await sendEmail(
+      email,
+      "Your OTP Code",
+      `<p>Your OTP code is: <b>${otpCode}</b></p><p>It expires in 5 minutes.</p>`
+    );
+
+    // Return 2FA required response
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        isActive: user.isActive,
-        isChanged: user.isChanged,
-        profile: user.profile,
-      },
-      // token,
+      requires2FA: true,
+      email: email.replace(/(.{2}).+(@.+)/, "$1****$2"), // mask email
     };
   } catch (error) {
     throw new Error(error.message);
   }
+}
+
+async function verifyOtp(email, otpCode) {
+  const user = await userDAO.verifyUserOTP(email, otpCode);
+  if (!user) throw new Error("Invalid or expired OTP");
+  // Return user data/session as you would after login
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      isActive: user.isActive,
+      isChanged: user.isChanged,
+      profile: user.profile,
+    },
+    // token: ... (if using JWT)
+  };
 }
 
 async function register(data) {
@@ -196,4 +206,5 @@ module.exports = {
   updateProfile,
   changePassword,
   resetPassword,
+  verifyOtp,
 };

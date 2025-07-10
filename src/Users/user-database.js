@@ -235,6 +235,26 @@ async function getProfileByUserId(id) {
   }
 }
 
+async function setUserOTP(email, otpCode, otpExpiry) {
+  return prisma.user.update({
+    where: { email },
+    data: { otpCode, otpExpiry },
+  });
+}
+
+async function verifyUserOTP(email, otpCode) {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user || !user.otpCode || !user.otpExpiry) return false;
+  if (user.otpCode !== otpCode) return false;
+  if (new Date() > user.otpExpiry) return false;
+  // Optionally clear OTP after use
+  await prisma.user.update({
+    where: { email },
+    data: { otpCode: null, otpExpiry: null },
+  });
+  return user;
+}
+
 module.exports = {
   getProfileByUserId,
   deleteUser,
@@ -244,5 +264,7 @@ module.exports = {
   updateLastLogin,
   updateUser,
   updateProfile,
+  setUserOTP,
+  verifyUserOTP,
   changePassword,
 };

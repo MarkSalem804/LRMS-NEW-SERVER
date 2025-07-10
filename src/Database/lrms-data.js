@@ -95,7 +95,22 @@ async function getAllMaterials() {
   }
 }
 
+async function deleteMaterial(materialId) {
+  try {
+    const data = await prisma.materials.delete({
+      where: {
+        id: materialId,
+      },
+    });
+    return data;
+  } catch (error) {
+    console.error("Error deleting materials!", error);
+    return { success: false, error: error.message };
+  }
+}
+
 module.exports = {
+  deleteMaterial,
   getAllMaterials,
   saveMaterialsToDatabase,
   createGradeLevels,
