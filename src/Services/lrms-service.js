@@ -525,6 +525,182 @@ async function getMaterialWithFile(materialId) {
   }
 }
 
+async function getFilterOptions() {
+  try {
+    const [
+      learningAreas,
+      tracks,
+      components,
+      strands,
+      subjectTypes,
+      types,
+      coreSubjects,
+      appliedSubjects,
+      specializedSubjects,
+    ] = await Promise.all([
+      prisma.learningAreas.findMany({
+        select: { name: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.track.findMany({
+        select: { name: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.component.findMany({
+        select: { name: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.strand.findMany({
+        select: { name: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.subjectType.findMany({
+        select: { name: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.type.findMany({
+        select: { name: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.coreSubjects.findMany({
+        select: { name: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.appliedSubjects.findMany({
+        select: { name: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.specializedSubjects.findMany({
+        select: { name: true },
+        orderBy: { name: "asc" },
+      }),
+    ]);
+
+    return {
+      learningAreas: learningAreas.map((item) => item.name).filter(Boolean),
+      tracks: tracks.map((item) => item.name).filter(Boolean),
+      components: components.map((item) => item.name).filter(Boolean),
+      strands: strands.map((item) => item.name).filter(Boolean),
+      subjectTypes: subjectTypes.map((item) => item.name).filter(Boolean),
+      types: types.map((item) => item.name).filter(Boolean),
+      coreSubjects: coreSubjects.map((item) => item.name).filter(Boolean),
+      appliedSubjects: appliedSubjects.map((item) => item.name).filter(Boolean),
+      specializedSubjects: specializedSubjects
+        .map((item) => item.name)
+        .filter(Boolean),
+    };
+  } catch (error) {
+    console.error("Error fetching filter options:", error);
+    throw new Error("Failed to fetch filter options");
+  }
+}
+
+// Replace Prisma CRUDs with lrmsData calls
+
+// Learning Areas CRUD
+async function addLearningArea(data) {
+  return await lrmsData.addLearningArea(data);
+}
+
+async function updateLearningArea(id, data) {
+  return await lrmsData.updateLearningArea(id, data);
+}
+
+async function deleteLearningArea(id) {
+  return await lrmsData.deleteLearningArea(id);
+}
+
+// Components CRUD
+async function addComponent(data) {
+  return await lrmsData.addComponent(data);
+}
+
+async function updateComponent(id, data) {
+  return await lrmsData.updateComponent(id, data);
+}
+
+async function deleteComponent(id) {
+  return await lrmsData.deleteComponent(id);
+}
+
+// Core Subjects CRUD
+async function addCoreSubject(data) {
+  return await lrmsData.addCoreSubject(data);
+}
+
+async function updateCoreSubject(id, data) {
+  return await lrmsData.updateCoreSubject(id, data);
+}
+
+async function deleteCoreSubject(id) {
+  return await lrmsData.deleteCoreSubject(id);
+}
+
+// Tracks CRUD
+async function addTrack(data) {
+  return await lrmsData.addTrack(data);
+}
+
+async function updateTrack(id, data) {
+  return await lrmsData.updateTrack(id, data);
+}
+
+async function deleteTrack(id) {
+  return await lrmsData.deleteTrack(id);
+}
+
+// Strands CRUD
+async function addStrand(data) {
+  return await lrmsData.addStrand(data);
+}
+
+async function updateStrand(id, data) {
+  return await lrmsData.updateStrand(id, data);
+}
+
+async function deleteStrand(id) {
+  return await lrmsData.deleteStrand(id);
+}
+
+// Applied Subjects CRUD
+async function addAppliedSubject(data) {
+  return await lrmsData.addAppliedSubject(data);
+}
+
+async function updateAppliedSubject(id, data) {
+  return await lrmsData.updateAppliedSubject(id, data);
+}
+
+async function deleteAppliedSubject(id) {
+  return await lrmsData.deleteAppliedSubject(id);
+}
+
+// Specialized Subjects CRUD
+async function addSpecializedSubject(data) {
+  return await lrmsData.addSpecializedSubject(data);
+}
+
+async function updateSpecializedSubject(id, data) {
+  return await lrmsData.updateSpecializedSubject(id, data);
+}
+
+async function deleteSpecializedSubject(id) {
+  return await lrmsData.deleteSpecializedSubject(id);
+}
+
+// Types CRUD
+async function addType(data) {
+  return await lrmsData.addType(data);
+}
+
+async function updateType(id, data) {
+  return await lrmsData.updateType(id, data);
+}
+
+async function deleteType(id) {
+  return await lrmsData.deleteType(id);
+}
+
 module.exports = {
   parseExcelFile,
   checkDuplicateMaterials,
@@ -539,4 +715,29 @@ module.exports = {
   updateMaterialWithFile,
   fetchAllMaterials,
   getMaterialWithFile,
+  getFilterOptions,
+  addLearningArea,
+  updateLearningArea,
+  deleteLearningArea,
+  addComponent,
+  updateComponent,
+  deleteComponent,
+  addCoreSubject,
+  updateCoreSubject,
+  deleteCoreSubject,
+  addTrack,
+  updateTrack,
+  deleteTrack,
+  addStrand,
+  updateStrand,
+  deleteStrand,
+  addAppliedSubject,
+  updateAppliedSubject,
+  deleteAppliedSubject,
+  addSpecializedSubject,
+  updateSpecializedSubject,
+  deleteSpecializedSubject,
+  addType,
+  updateType,
+  deleteType,
 };

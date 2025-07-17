@@ -23,24 +23,43 @@ async function login(email, password) {
       throw new Error("Invalid password");
     }
 
-    // Generate OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 min
+    // Check if 2FA is enabled for this user
+    if (user.twoFactorEnabled) {
+      // Generate OTP
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 min
 
-    await userDAO.setUserOTP(email, otpCode, otpExpiry);
+      await userDAO.setUserOTP(email, otpCode, otpExpiry);
 
-    // Send OTP email
-    await sendEmail(
-      email,
-      "Your OTP Code",
-      `<p>Your OTP code is: <b>${otpCode}</b></p><p>It expires in 5 minutes.</p>`
-    );
+      // Send OTP email
+      await sendEmail(
+        email,
+        "Your OTP Code",
+        `<p>Your OTP code is: <b>${otpCode}</b></p><p>It expires in 5 minutes.</p>`
+      );
 
-    // Return 2FA required response
-    return {
-      requires2FA: true,
-      email: email.replace(/(.{2}).+(@.+)/, "$1****$2"), // mask email
-    };
+      // Return 2FA required response
+      return {
+        requires2FA: true,
+        email: email.replace(/(.{2}).+(@.+)/, "$1****$2"), // mask email
+      };
+    } else {
+      // 2FA is disabled, return user data directly
+      return {
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          isActive: user.isActive,
+          isChanged: user.isChanged,
+          twoFactorEnabled: user.twoFactorEnabled,
+          profile: user.profile,
+        },
+      };
+    }
   } catch (error) {
     throw new Error(error.message);
   }
@@ -196,6 +215,67 @@ async function userProfile(id) {
   }
 }
 
+async function resendOtp(email) {
+  try {
+    // Check if user exists
+    const user = await userDAO.findUserByEmail(email);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      throw new Error("Account is deactivated");
+    }
+
+    // Generate new OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 min
+
+    await userDAO.setUserOTP(email, otpCode, otpExpiry);
+
+    // Send new OTP email
+    await sendEmail(
+      email,
+      "Your New OTP Code",
+      `<p>Your new OTP code is: <b>${otpCode}</b></p><p>It expires in 5 minutes.</p>`
+    );
+
+    return {
+      success: true,
+      message: "New OTP sent successfully",
+      email: email.replace(/(.{2}).+(@.+)/, "$1****$2"), // mask email
+    };
+  } catch (error) {
+    throw new Error(error.message);
+  }
+}
+
+async function toggleTwoFactor(userId, enabled) {
+  try {
+    const updatedUser = await userDAO.updateUser(userId, {
+      twoFactorEnabled: enabled,
+    });
+    return updatedUser;
+  } catch (error) {
+    throw new Error(error.message);
+  }
+}
+
+async function getTwoFactorStatus(userId) {
+  try {
+    const user = await userDAO.findUserById(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    return {
+      twoFactorEnabled: user.twoFactorEnabled,
+    };
+  } catch (error) {
+    throw new Error(error.message);
+  }
+}
+
 module.exports = {
   userProfile,
   getAllUsers,
@@ -207,4 +287,7 @@ module.exports = {
   changePassword,
   resetPassword,
   verifyOtp,
+  resendOtp,
+  toggleTwoFactor,
+  getTwoFactorStatus,
 };

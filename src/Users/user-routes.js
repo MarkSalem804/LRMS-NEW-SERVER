@@ -128,6 +128,29 @@ userRouter.post("/verify-otp", async (req, res) => {
   }
 });
 
+userRouter.post("/resend-otp", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+    const result = await userService.resendOtp(email);
+    return res.status(200).json({
+      success: true,
+      message: "New OTP sent successfully",
+      data: result,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
 userRouter.get("/getAllUsers", async (req, res) => {
   try {
     const fetchedData = await userService.getAllUsers();
@@ -252,6 +275,50 @@ userRouter.post("/resetPassword", async (req, res) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+// 2FA Routes
+userRouter.get("/two-factor-status/:userId", async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId, 10);
+    const result = await userService.getTwoFactorStatus(userId);
+    return res.status(200).json({
+      success: true,
+      message: "2FA status retrieved successfully",
+      data: result,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+userRouter.patch("/toggle-two-factor/:userId", async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId, 10);
+    const { enabled } = req.body;
+
+    if (typeof enabled !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message: "Enabled field must be a boolean",
+      });
+    }
+
+    const result = await userService.toggleTwoFactor(userId, enabled);
+    return res.status(200).json({
+      success: true,
+      message: `2FA ${enabled ? "enabled" : "disabled"} successfully`,
+      data: result,
+    });
+  } catch (error) {
+    return res.status(400).json({
       success: false,
       message: error.message,
     });

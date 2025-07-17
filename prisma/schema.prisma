@@ -14,22 +14,23 @@ datasource db {
 }
 
 model user {
-  id         Int       @id @default(autoincrement())
-  email      String    @unique
-  password   String
-  firstName  String
-  lastName   String
-  role       String
-  age        Int?
-  birthdate  DateTime?
-  middleName String?
-  isActive   Boolean   @default(true)
-  isChanged  Boolean   @default(false)
-  lastLogin  DateTime?
-  createdAt  DateTime  @default(now())
-  profile    profile[]
-  otpCode    String?
-  otpExpiry  DateTime?
+  id               Int       @id @default(autoincrement())
+  email            String    @unique
+  password         String
+  firstName        String
+  lastName         String
+  role             String
+  age              Int?
+  birthdate        DateTime?
+  middleName       String?
+  isActive         Boolean   @default(true)
+  isChanged        Boolean   @default(false)
+  lastLogin        DateTime?
+  twoFactorEnabled Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  profile          profile[]
+  otpCode          String?
+  otpExpiry        DateTime?
 }
 
 model profile {

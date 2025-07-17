@@ -398,4 +398,368 @@ lrmsRouter.get("/get-material/:materialId", async (req, res) => {
   }
 });
 
+// Add new route for getting all filter options
+lrmsRouter.get("/get-filter-options", async (req, res) => {
+  try {
+    const filterOptions = await lrmsService.getFilterOptions();
+    return res.status(200).json({
+      success: true,
+      message: "Filter options fetched successfully",
+      data: filterOptions,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+// CRUD endpoints for data management
+lrmsRouter.post("/add-learning-area", async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    const result = await lrmsService.addLearningArea({ name, description });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.put("/update-learning-area/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+    const result = await lrmsService.updateLearningArea(parseInt(id), {
+      name,
+      description,
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.delete("/delete-learning-area/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await lrmsService.deleteLearningArea(parseInt(id));
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.post("/add-component", async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    const result = await lrmsService.addComponent({ name, description });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.put("/update-component/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+    const result = await lrmsService.updateComponent(parseInt(id), {
+      name,
+      description,
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.delete("/delete-component/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await lrmsService.deleteComponent(parseInt(id));
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.post("/add-core-subject", async (req, res) => {
+  try {
+    const { name } = req.body;
+    const result = await lrmsService.addCoreSubject({ name });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.put("/update-core-subject/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+    const result = await lrmsService.updateCoreSubject(parseInt(id), { name });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.delete("/delete-core-subject/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await lrmsService.deleteCoreSubject(parseInt(id));
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.post("/add-track", async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    const result = await lrmsService.addTrack({ name, description });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.put("/update-track/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+    const result = await lrmsService.updateTrack(parseInt(id), {
+      name,
+      description,
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.delete("/delete-track/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await lrmsService.deleteTrack(parseInt(id));
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.post("/add-strand", async (req, res) => {
+  try {
+    const { name, trackId } = req.body;
+    const result = await lrmsService.addStrand({ name, trackId });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.put("/update-strand/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, trackId } = req.body;
+    const result = await lrmsService.updateStrand(parseInt(id), {
+      name,
+      trackId,
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.delete("/delete-strand/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await lrmsService.deleteStrand(parseInt(id));
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.post("/add-applied-subject", async (req, res) => {
+  try {
+    const { name, trackId } = req.body;
+    const result = await lrmsService.addAppliedSubject({ name, trackId });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.put("/update-applied-subject/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, trackId } = req.body;
+    const result = await lrmsService.updateAppliedSubject(parseInt(id), {
+      name,
+      trackId,
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.delete("/delete-applied-subject/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await lrmsService.deleteAppliedSubject(parseInt(id));
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.post("/add-specialized-subject", async (req, res) => {
+  try {
+    const { name, trackId, strandId } = req.body;
+    const result = await lrmsService.addSpecializedSubject({
+      name,
+      trackId,
+      strandId,
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.put("/update-specialized-subject/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, trackId, strandId } = req.body;
+    const result = await lrmsService.updateSpecializedSubject(parseInt(id), {
+      name,
+      trackId,
+      strandId,
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.delete("/delete-specialized-subject/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await lrmsService.deleteSpecializedSubject(parseInt(id));
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.post("/add-type", async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    const result = await lrmsService.addType({ name, description });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.put("/update-type/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+    const result = await lrmsService.updateType(parseInt(id), {
+      name,
+      description,
+    });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+lrmsRouter.delete("/delete-type/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await lrmsService.deleteType(parseInt(id));
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
 module.exports = lrmsRouter;
