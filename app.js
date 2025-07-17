@@ -1,5 +1,7 @@
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
+const fs = require("fs");
+const https = require("https");
 const cookieParser = require("cookie-parser");
 const Routes = require("./src/Middlewares/routes-conf");
 const clear = require("clear");
@@ -39,9 +41,26 @@ app.use((err, req, res, next) => {
   res.status(500).send("Something went wrong!");
 });
 
-app.listen(port, () => {
+const options = {
+  key: fs.readFileSync(
+    "/etc/letsencrypt/live/ilearn-beta.depedimuscity.com/privkey.pem"
+  ),
+  cert: fs.readFileSync(
+    "/etc/letsencrypt/live/ilearn-beta.depedimuscity.com/fullchain.pem"
+  ),
+};
+
+const server = https.createServer(options, app);
+
+server.listen(port, () => {
   clear(); // Clear the terminal when the server starts
   console.log(`Server running on port ${port}`);
+  console.log(`Environment: ${process.env.NODE_ENV}`);
 });
+
+// app.listen(port, () => {
+//   clear(); // Clear the terminal when the server starts
+//   console.log(`Server running on port ${port}`);
+// });
 
 module.exports = { prisma };
