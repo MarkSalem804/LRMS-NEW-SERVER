@@ -18,6 +18,7 @@ const materialStorage = multer.diskStorage({
 const materialUpload = multer({ storage: materialStorage });
 
 const lrmsService = require("../Services/lrms-service"); // Import the service function
+const activityLogService = require("../ActivityLogs/activity-log-service");
 
 lrmsRouter.post(
   "/upload-materials",
@@ -72,6 +73,15 @@ lrmsRouter.post(
       );
 
       if (result.success) {
+        // Log material metadata upload
+        const userId = req.body.userId; // Pass userId from frontend
+        if (userId) {
+          await activityLogService.logMaterialUploaded(
+            userId,
+            `${duplicateCheckResult.totalNonDuplicates} materials`
+          );
+        }
+
         res.status(200).json({
           success: true,
           message: result.message,
@@ -226,6 +236,15 @@ lrmsRouter.post(
       );
 
       if (result.success) {
+        // Log material file upload
+        const userId = req.body.userId; // Pass userId from frontend
+        if (userId) {
+          await activityLogService.logMaterialFileUploaded(
+            userId,
+            result.material?.title || fileName
+          );
+        }
+
         res.status(200).json(result);
       } else {
         res.status(500).json(result);
@@ -344,6 +363,15 @@ lrmsRouter.get("/view-material/:materialId", async (req, res) => {
         success: false,
         message: "File not found on server.",
       });
+    }
+
+    // Log material view
+    const userId = req.query.userId; // Pass userId from frontend as query param
+    if (userId) {
+      await activityLogService.logMaterialViewed(
+        parseInt(userId),
+        material.material.title || title
+      );
     }
 
     // Set headers for viewing

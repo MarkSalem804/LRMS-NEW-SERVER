@@ -14,8 +14,8 @@ datasource db {
 }
 
 model user {
-  id               Int       @id @default(autoincrement())
-  email            String    @unique
+  id               Int            @id @default(autoincrement())
+  email            String         @unique
   password         String
   firstName        String
   lastName         String
@@ -23,14 +23,15 @@ model user {
   age              Int?
   birthdate        DateTime?
   middleName       String?
-  isActive         Boolean   @default(true)
-  isChanged        Boolean   @default(false)
+  isActive         Boolean        @default(true)
+  isChanged        Boolean        @default(false)
   lastLogin        DateTime?
-  twoFactorEnabled Boolean   @default(false)
-  createdAt        DateTime  @default(now())
+  twoFactorEnabled Boolean        @default(false)
+  createdAt        DateTime       @default(now())
   profile          profile[]
   otpCode          String?
   otpExpiry        DateTime?
+  activityLogs     activityLogs[]
 }
 
 model profile {
@@ -178,4 +179,13 @@ model appliedSubjects {
 model coreSubjects {
   id   Int     @id @default(autoincrement())
   name String?
+}
+
+model activityLogs {
+  id        Int       @id @default(autoincrement())
+  userId    Int?
+  user      user?     @relation(fields: [userId], references: [id])
+  activity  String?
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
 }

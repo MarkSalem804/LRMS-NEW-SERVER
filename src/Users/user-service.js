@@ -251,6 +251,103 @@ async function resendOtp(email) {
   }
 }
 
+async function selfRegister(email) {
+  try {
+    // Check if user already exists
+    const existingUser = await userDAO.findUserByEmail(email);
+    if (existingUser) {
+      throw new Error(
+        "Email already registered. Please login or contact administrator."
+      );
+    }
+
+    // Generate random temporary password (8 characters)
+    const tempPassword = crypto.randomBytes(4).toString("hex").toUpperCase();
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(tempPassword, salt);
+
+    // Create user with temporary password
+    // Set isChanged to false to force password change on first login
+    const user = await userDAO.createUser({
+      email,
+      password: hashedPassword,
+      firstName: "New",
+      lastName: "User",
+      role: "TEACHER", // Default role for self-registered users
+      isChanged: false, // Force password change on first login
+    });
+
+    // Send email with temporary password
+    const emailSubject = "Welcome to ILeaRN Portal - Your Temporary Password";
+    const emailBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb; border-radius: 10px;">
+        <div style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to ILeaRN Portal</h1>
+          <p style="color: #dbeafe; margin-top: 10px; font-size: 16px;">Imus Learning Resources Navigator</p>
+        </div>
+        
+        <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px;">
+          <p style="color: #374151; font-size: 16px; line-height: 1.6;">Hello,</p>
+          
+          <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+            Thank you for registering with ILeaRN Portal! Your account has been successfully created.
+          </p>
+          
+          <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb;">
+            <p style="color: #1f2937; font-size: 14px; margin: 0 0 10px 0; font-weight: 600;">Your Login Credentials:</p>
+            <p style="color: #374151; margin: 5px 0;"><strong>Email:</strong> ${email}</p>
+            <p style="color: #374151; margin: 5px 0;"><strong>Temporary Password:</strong> <span style="background: #fee2e2; color: #991b1b; padding: 8px 12px; border-radius: 6px; font-size: 18px; font-weight: bold; letter-spacing: 2px;">${tempPassword}</span></p>
+          </div>
+          
+          <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+            <p style="color: #92400e; font-size: 14px; margin: 0;">
+              <strong>⚠️ Important:</strong> This is a temporary password. You will be required to change it upon your first login for security purposes.
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin-top: 30px;">
+            <a href="http://localhost:5173" style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+              Login to ILeaRN Portal
+            </a>
+          </div>
+          
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
+              If you did not request this account, please ignore this email or contact our support team.
+            </p>
+            <p style="color: #6b7280; font-size: 14px; margin-top: 15px;">
+              Best regards,<br>
+              <strong style="color: #1f2937;">ILeaRN Portal Team</strong><br>
+              <span style="font-size: 12px;">SDO - Imus City</span>
+            </p>
+          </div>
+        </div>
+        
+        <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+          <p style="margin: 0;">© 2025 SDO - Imus City. All rights reserved.</p>
+          <p style="margin: 5px 0 0 0;">ILeaRN Portal - Imus Learning Resources Navigator</p>
+        </div>
+      </div>
+    `;
+
+    await sendEmail(email, emailSubject, emailBody);
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+      },
+    };
+  } catch (error) {
+    throw new Error(error.message);
+  }
+}
+
 async function toggleTwoFactor(userId, enabled) {
   try {
     const updatedUser = await userDAO.updateUser(userId, {
@@ -290,4 +387,5 @@ module.exports = {
   resendOtp,
   toggleTwoFactor,
   getTwoFactorStatus,
+  selfRegister,
 };

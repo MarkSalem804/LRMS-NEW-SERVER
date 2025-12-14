@@ -1,20 +1,60 @@
 const express = require("express");
 const userRouter = express.Router();
 const userService = require("./user-service");
-const { emitEvent, onlineUsers } = require("../Middlewares/socketio");
+const { emitEvent, getOnlineUsers } = require("../Middlewares/socketio");
+const activityLogService = require("../ActivityLogs/activity-log-service");
 
 userRouter.get("/online-users", async (req, res) => {
   try {
-    const online = Array.from(onlineUsers.values()); // e.g. ["Juan", "Pedro"]
+    const online = getOnlineUsers();
     return res.status(200).json({
       success: true,
       message: "Online users fetched successfully",
       data: online,
+      count: online.length,
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
       message: "Failed to get online users",
+    });
+  }
+});
+
+// Self-registration endpoint - User enters email, receives temp password
+userRouter.post("/self-register", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    // Call self-register service
+    const result = await userService.selfRegister(email);
+
+    // Log self-registration
+    await activityLogService.logActivity(
+      result.user.id,
+      "User self-registered"
+    );
+
+    return res.status(201).json({
+      success: true,
+      message:
+        "Registration successful! Check your email for temporary password.",
+      data: {
+        email: result.user.email,
+        message: "Temporary password sent to your email",
+      },
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
     });
   }
 });
@@ -30,6 +70,7 @@ userRouter.post("/register", async (req, res) => {
       role,
       birthdate,
       age,
+      adminUserId, // Pass the admin user ID who is creating the user
     } = req.body;
 
     // Validate request body
@@ -51,6 +92,13 @@ userRouter.post("/register", async (req, res) => {
       birthdate,
       age,
     });
+
+    // Log user creation
+    if (adminUserId) {
+      await activityLogService.logUserCreated(adminUserId, email);
+    } else {
+      await activityLogService.logActivity(result.id, "User self-registered");
+    }
 
     // Return success response
     return res.status(201).json({
@@ -94,12 +142,19 @@ userRouter.post("/login", async (req, res) => {
       email: result.user.email,
     });
 
+    // Log successful login
+    await activityLogService.logLogin(result.user.id, result.user.email);
+
     return res.status(200).json({
       success: true,
       message: "Login successful",
       data: result,
     });
   } catch (error) {
+    // Log failed login attempt
+    if (req.body.email) {
+      await activityLogService.logFailedLogin(req.body.email);
+    }
     return res.status(401).json({
       success: false,
       message: error.message,
@@ -115,6 +170,10 @@ userRouter.post("/verify-otp", async (req, res) => {
     emitEvent("user-just-logged-in", {
       email: result.user.email,
     });
+
+    // Log successful login after OTP verification
+    await activityLogService.logLogin(result.user.id, result.user.email);
+
     return res.status(200).json({
       success: true,
       message: "OTP verified successfully",
@@ -187,7 +246,18 @@ userRouter.get("/getUserProfile/:id", async (req, res) => {
 userRouter.delete("/deleteUser/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
+    const { adminUserId } = req.body; // Pass admin user ID who is deleting
+
+    // Get user info before deletion
+    const userToDelete = await userService.userProfile(id);
+
     const deletedUser = await userService.deleteUser(id);
+
+    // Log user deletion
+    if (adminUserId) {
+      await activityLogService.logUserDeleted(adminUserId, userToDelete.email);
+    }
+
     return res.status(200).json({
       success: true,
       message: "User deleted successfully",
@@ -204,7 +274,15 @@ userRouter.delete("/deleteUser/:id", async (req, res) => {
 userRouter.put("/updateUser/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const updatedUser = await userService.updateUser(id, req.body);
+    const { adminUserId, ...updateData } = req.body;
+
+    const updatedUser = await userService.updateUser(id, updateData);
+
+    // Log user update
+    if (adminUserId) {
+      await activityLogService.logUserUpdated(adminUserId, updatedUser.email);
+    }
+
     return res.status(200).json({
       success: true,
       message: "User updated successfully",
@@ -222,6 +300,10 @@ userRouter.put("/updateProfile/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const updatedProfile = await userService.updateProfile(id, req.body);
+
+    // Log profile update
+    await activityLogService.logProfileUpdated(id);
+
     return res.status(200).json({
       success: true,
       message: "Profile updated successfully",
@@ -241,6 +323,10 @@ userRouter.patch("/changePassword/:id", async (req, res) => {
     const id = parseInt(req.params.id, 10);
     const newPassword = req.body.newPassword;
     const updatedUser = await userService.changePassword(id, newPassword);
+
+    // Log password change
+    await activityLogService.logPasswordChanged(id);
+
     return res.status(200).json({
       success: true,
       message: "Password changed successfully",
@@ -256,7 +342,7 @@ userRouter.patch("/changePassword/:id", async (req, res) => {
 
 userRouter.post("/resetPassword", async (req, res) => {
   try {
-    const { email, newPassword } = req.body;
+    const { email, newPassword, adminUserId } = req.body;
 
     if (!email || !newPassword) {
       return res.status(400).json({
@@ -266,6 +352,11 @@ userRouter.post("/resetPassword", async (req, res) => {
     }
 
     const result = await userService.resetPassword(email, newPassword);
+
+    // Log password reset by admin
+    if (adminUserId) {
+      await activityLogService.logPasswordReset(adminUserId, email);
+    }
 
     return res.status(200).json({
       success: true,
@@ -312,6 +403,10 @@ userRouter.patch("/toggle-two-factor/:userId", async (req, res) => {
     }
 
     const result = await userService.toggleTwoFactor(userId, enabled);
+
+    // Log 2FA toggle
+    await activityLogService.logTwoFactorToggle(userId, enabled);
+
     return res.status(200).json({
       success: true,
       message: `2FA ${enabled ? "enabled" : "disabled"} successfully`,

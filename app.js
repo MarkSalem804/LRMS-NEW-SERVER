@@ -2,11 +2,13 @@ const express = require("express");
 const { PrismaClient } = require("@prisma/client");
 const fs = require("fs");
 const https = require("https");
+const http = require("http");
 const cookieParser = require("cookie-parser");
 const Routes = require("./src/Middlewares/routes-conf");
 const clear = require("clear");
 const dotenv = require("dotenv");
 const cors = require("cors");
+const { initSocket } = require("./src/Middlewares/socketio");
 
 dotenv.config();
 
@@ -41,26 +43,33 @@ app.use((err, req, res, next) => {
   res.status(500).send("Something went wrong!");
 });
 
-const options = {
-  key: fs.readFileSync(
-    "/etc/letsencrypt/live/ilearn-beta.depedimuscity.com/privkey.pem"
-  ),
-  cert: fs.readFileSync(
-    "/etc/letsencrypt/live/ilearn-beta.depedimuscity.com/fullchain.pem"
-  ),
-};
+// const options = {
+//   key: fs.readFileSync(
+//     "/etc/letsencrypt/live/ilearn-beta.depedimuscity.com/privkey.pem"
+//   ),
+//   cert: fs.readFileSync(
+//     "/etc/letsencrypt/live/ilearn-beta.depedimuscity.com/fullchain.pem"
+//   ),
+// };
 
-const server = https.createServer(options, app);
+// const server = https.createServer(options, app);
+
+// server.listen(port, () => {
+//   clear(); // Clear the terminal when the server starts
+//   console.log(`Server running on port ${port}`);
+//   console.log(`Environment: ${process.env.NODE_ENV}`);
+// });
+
+// Create HTTP server for Socket.io
+const server = http.createServer(app);
+
+// Initialize Socket.io
+initSocket(server);
 
 server.listen(port, () => {
   clear(); // Clear the terminal when the server starts
-  console.log(`Server running on port ${port}`);
-  console.log(`Environment: ${process.env.NODE_ENV}`);
+  console.log(`🚀 Server running on port ${port}`);
+  console.log(`🔌 Socket.io initialized and ready`);
 });
-
-// app.listen(port, () => {
-//   clear(); // Clear the terminal when the server starts
-//   console.log(`Server running on port ${port}`);
-// });
 
 module.exports = { prisma };
