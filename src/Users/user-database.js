@@ -9,7 +9,13 @@ async function findUserByEmail(email) {
         email: email,
       },
       include: {
-        profile: true,
+        profile: {
+          include: {
+            position: true,
+            office: true,
+            school: true,
+          },
+        },
       },
     });
     return user;
@@ -25,7 +31,13 @@ async function findUserById(userId) {
         id: parseInt(userId, 10),
       },
       include: {
-        profile: true,
+        profile: {
+          include: {
+            position: true,
+            office: true,
+            school: true,
+          },
+        },
       },
     });
     return user;
@@ -51,7 +63,7 @@ async function updateLastLogin(userId) {
 
 async function createUser(userData) {
   try {
-    const role = userData.role || "USER";
+    const role = userData.role || "Teacher";
 
     const user = await prisma.user.create({
       data: {
@@ -72,6 +84,12 @@ async function createUser(userData) {
             age: userData.age ? Number(userData.age) : null,
             emailAddress: userData.email,
             role: role,
+            profilePicture: userData.profilePicture || null,
+            officeId: userData.officeId ? Number(userData.officeId) : null,
+            schoolId: userData.schoolId ? Number(userData.schoolId) : null,
+            positionId: userData.positionId
+              ? Number(userData.positionId)
+              : null,
           },
         },
       },
@@ -200,6 +218,23 @@ async function updateProfile(userId, profileData) {
     // Delete emailAddress from profileDataToUpdate if it was there
     delete profileDataToUpdate.emailAddress;
 
+    // Convert officeId, schoolId, positionId to numbers if present
+    if (profileDataToUpdate.hasOwnProperty("officeId")) {
+      profileDataToUpdate.officeId = profileDataToUpdate.officeId
+        ? Number(profileDataToUpdate.officeId)
+        : null;
+    }
+    if (profileDataToUpdate.hasOwnProperty("schoolId")) {
+      profileDataToUpdate.schoolId = profileDataToUpdate.schoolId
+        ? Number(profileDataToUpdate.schoolId)
+        : null;
+    }
+    if (profileDataToUpdate.hasOwnProperty("positionId")) {
+      profileDataToUpdate.positionId = profileDataToUpdate.positionId
+        ? Number(profileDataToUpdate.positionId)
+        : null;
+    }
+
     if (Object.keys(profileDataToUpdate).length > 0) {
       const updatedProfile = await prisma.profile.update({
         where: { id: profileId },
@@ -259,7 +294,18 @@ async function setUserOTP(email, otpCode, otpExpiry) {
 }
 
 async function verifyUserOTP(email, otpCode) {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({
+    where: { email },
+    include: {
+      profile: {
+        include: {
+          position: true,
+          office: true,
+          school: true,
+        },
+      },
+    },
+  });
   if (!user || !user.otpCode || !user.otpExpiry) return false;
   if (user.otpCode !== otpCode) return false;
   if (new Date() > user.otpExpiry) return false;

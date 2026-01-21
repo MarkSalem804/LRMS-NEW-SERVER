@@ -1,8 +1,31 @@
 const bcrypt = require("bcryptjs");
-// const jwt = require("jsonwebtoken");
+const jwt = require("jsonwebtoken");
 const userDAO = require("./user-database");
 const sendEmail = require("../Middlewares/sendEmail");
 const crypto = require("crypto");
+
+// JWT secret key - should be in .env file in production
+// For now, using a default. In production, use: process.env.JWT_SECRET
+const JWT_SECRET =
+  process.env.JWT_SECRET || "your-super-secret-jwt-key-change-in-production";
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "24h"; // Token expires in 24 hours
+
+/**
+ * Generate JWT token for a user
+ * @param {Object} user - User object containing id, email, role
+ * @returns {String} JWT token
+ */
+function generateToken(user) {
+  return jwt.sign(
+    {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN }
+  );
+}
 
 async function login(email, password) {
   try {
@@ -44,20 +67,36 @@ async function login(email, password) {
         email: email.replace(/(.{2}).+(@.+)/, "$1****$2"), // mask email
       };
     } else {
-      // 2FA is disabled, return user data directly
+      // 2FA is disabled, return user data with JWT token
+      // Extract position, office, and school names from profile
+      const profile =
+        user.profile && user.profile.length > 0 ? user.profile[0] : null;
+      const positionName = profile?.position?.name || null;
+      const officeName = profile?.office?.name || null;
+      const schoolName = profile?.school?.name || null;
+
+      const userData = {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        isActive: user.isActive,
+        isChanged: user.isChanged,
+        twoFactorEnabled: user.twoFactorEnabled,
+        profile: user.profile,
+        positionName: positionName,
+        officeName: officeName,
+        schoolName: schoolName,
+      };
+
+      // Generate JWT token
+      const token = generateToken(userData);
+
       return {
         success: true,
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          isActive: user.isActive,
-          isChanged: user.isChanged,
-          twoFactorEnabled: user.twoFactorEnabled,
-          profile: user.profile,
-        },
+        user: userData,
+        token: token, // JWT token for authentication
       };
     }
   } catch (error) {
@@ -68,19 +107,35 @@ async function login(email, password) {
 async function verifyOtp(email, otpCode) {
   const user = await userDAO.verifyUserOTP(email, otpCode);
   if (!user) throw new Error("Invalid or expired OTP");
-  // Return user data/session as you would after login
+
+  // Extract position, office, and school names from profile
+  const profile =
+    user.profile && user.profile.length > 0 ? user.profile[0] : null;
+  const positionName = profile?.position?.name || null;
+  const officeName = profile?.office?.name || null;
+  const schoolName = profile?.school?.name || null;
+
+  // Return user data with JWT token
+  const userData = {
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    role: user.role,
+    isActive: user.isActive,
+    isChanged: user.isChanged,
+    profile: user.profile,
+    positionName: positionName,
+    officeName: officeName,
+    schoolName: schoolName,
+  };
+
+  // Generate JWT token after OTP verification
+  const token = generateToken(userData);
+
   return {
-    user: {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
-      isActive: user.isActive,
-      isChanged: user.isChanged,
-      profile: user.profile,
-    },
-    // token: ... (if using JWT)
+    user: userData,
+    token: token, // JWT token for authentication
   };
 }
 
@@ -275,7 +330,7 @@ async function selfRegister(email) {
       password: hashedPassword,
       firstName: "New",
       lastName: "User",
-      role: "TEACHER", // Default role for self-registered users
+      role: "Teacher", // Default role for self-registered users
       isChanged: false, // Force password change on first login
     });
 

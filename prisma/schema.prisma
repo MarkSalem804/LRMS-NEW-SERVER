@@ -13,50 +13,82 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  Administrative
+  Teacher
+  EPS
+  LR_coor
+  Non_teaching
+}
+
 model user {
-  id               Int            @id @default(autoincrement())
-  email            String         @unique
+  id               Int               @id @default(autoincrement())
+  email            String            @unique
   password         String
   firstName        String
   lastName         String
-  role             String
+  role             Role
   age              Int?
   birthdate        DateTime?
   middleName       String?
-  isActive         Boolean        @default(true)
-  isChanged        Boolean        @default(false)
+  isActive         Boolean           @default(true)
+  isChanged        Boolean           @default(false)
   lastLogin        DateTime?
-  twoFactorEnabled Boolean        @default(false)
-  createdAt        DateTime       @default(now())
+  twoFactorEnabled Boolean           @default(false)
+  createdAt        DateTime          @default(now())
   profile          profile[]
   otpCode          String?
   otpExpiry        DateTime?
   activityLogs     activityLogs[]
+  materialRatings  materialRatings[]
 }
 
 model profile {
-  id           Int        @id @default(autoincrement())
-  userId       Int?
-  user         user?      @relation(fields: [userId], references: [id])
-  address      String?    @db.Text
-  firstName    String?
-  lastName     String?
-  middleName   String?
-  age          Int?
-  birthdate    DateTime?
-  phoneNumber  String?
-  emailAddress String?
-  role         String
-  employeeId   String?
-  positionId   Int?
-  position     positions? @relation(fields: [positionId], references: [id])
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id             Int        @id @default(autoincrement())
+  userId         Int?
+  user           user?      @relation(fields: [userId], references: [id])
+  address        String?    @db.Text
+  firstName      String?
+  lastName       String?
+  middleName     String?
+  age            Int?
+  birthdate      DateTime?
+  phoneNumber    String?
+  emailAddress   String?
+  role           Role
+  employeeId     String?
+  positionId     Int?
+  schoolId       Int?
+  school         schools?   @relation(fields: [schoolId], references: [id])
+  officeId       Int?
+  office         offices?   @relation(fields: [officeId], references: [id])
+  position       positions? @relation(fields: [positionId], references: [id])
+  profilePicture String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 }
 
 model positions {
   id          Int       @id @default(autoincrement())
   name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  profile     profile[]
+}
+
+model offices {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  profile     profile[]
+}
+
+model schools {
+  id          Int       @id @default(autoincrement())
+  name        String
   description String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -82,33 +114,35 @@ model gradeLevels {
 }
 
 model materials {
-  id             Int            @id @default(autoincrement())
-  title          String?
-  gradeLevelId   Int?
-  gradeLevel     gradeLevels?   @relation(fields: [gradeLevelId], references: [id])
-  learningAreaId Int?
-  learningArea   learningAreas? @relation(fields: [learningAreaId], references: [id])
-  description    String?
-  uploadedAt     DateTime
-  downloads      Int?
-  rating         Float?
-  intendedUsers  String?
-  topic          String?
-  language       String?
-  objective      String?
-  educationType  String?
-  track          track?         @relation(fields: [trackId], references: [id])
-  trackId        Int?
-  component      component?     @relation(fields: [componentId], references: [id])
-  componentId    Int?
-  strand         strand?        @relation(fields: [strandId], references: [id])
-  strandId       Int?
-  type           type?          @relation(fields: [typeId], references: [id])
-  typeId         Int?
-  subjectType    subjectType?   @relation(fields: [subjectTypeId], references: [id])
-  subjectTypeId  Int?
-  materialPath   String?
-  fileName       String?
+  id              Int               @id @default(autoincrement())
+  title           String?
+  gradeLevelId    Int?
+  gradeLevel      gradeLevels?      @relation(fields: [gradeLevelId], references: [id])
+  learningAreaId  Int?
+  learningArea    learningAreas?    @relation(fields: [learningAreaId], references: [id])
+  description     String?
+  uploadedAt      DateTime
+  downloads       Int?
+  views           Int?              @default(0)
+  rating          Float?
+  intendedUsers   String?
+  topic           String?
+  language        String?
+  objective       String?
+  educationType   String?
+  track           track?            @relation(fields: [trackId], references: [id])
+  trackId         Int?
+  component       component?        @relation(fields: [componentId], references: [id])
+  componentId     Int?
+  strand          strand?           @relation(fields: [strandId], references: [id])
+  strandId        Int?
+  type            type?             @relation(fields: [typeId], references: [id])
+  typeId          Int?
+  subjectType     subjectType?      @relation(fields: [subjectTypeId], references: [id])
+  subjectTypeId   Int?
+  materialPath    String?
+  fileName        String?
+  materialRatings materialRatings[]
 }
 
 model subjectType {
@@ -188,4 +222,18 @@ model activityLogs {
   activity  String?
   createdAt DateTime? @default(now())
   updatedAt DateTime? @updatedAt
+}
+
+model materialRatings {
+  id          Int       @id @default(autoincrement())
+  materialId  Int
+  material    materials @relation(fields: [materialId], references: [id])
+  userId      Int?
+  user        user?     @relation(fields: [userId], references: [id])
+  rating      Int // 1-5 stars
+  suggestions String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([materialId, userId]) // One rating per user per material
 }

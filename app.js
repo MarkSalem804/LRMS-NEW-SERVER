@@ -22,6 +22,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// Serve static files from uploads directory
+app.use("/uploads", express.static("uploads"));
+
 // Middleware
 app.use(credentials);
 app.use(cors(corsOptions));
@@ -45,10 +48,10 @@ app.use((err, req, res, next) => {
 
 // const options = {
 //   key: fs.readFileSync(
-//     "/etc/letsencrypt/live/ilearn-beta.depedimuscity.com/privkey.pem"
+//     "/etc/letsencrypt/live/sdoic-ilearn.depedimuscity.com/privkey.pem"
 //   ),
 //   cert: fs.readFileSync(
-//     "/etc/letsencrypt/live/ilearn-beta.depedimuscity.com/fullchain.pem"
+//     "/etc/letsencrypt/live/sdoic-ilearn.depedimuscity.com/fullchain.pem"
 //   ),
 // };
 

@@ -3,6 +3,23 @@ const userRouter = express.Router();
 const userService = require("./user-service");
 const { emitEvent, getOnlineUsers } = require("../Middlewares/socketio");
 const activityLogService = require("../ActivityLogs/activity-log-service");
+const multer = require("multer");
+const path = require("path");
+
+// Multer configuration for profile picture uploads
+const profileStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads/profiles/"); // Destination folder
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename: timestamp-originalname
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    const basename = path.basename(file.originalname, ext);
+    cb(null, basename + "-" + uniqueSuffix + ext);
+  },
+});
+const profileUpload = multer({ storage: profileStorage });
 
 userRouter.get("/online-users", async (req, res) => {
   try {
@@ -59,61 +76,84 @@ userRouter.post("/self-register", async (req, res) => {
   }
 });
 
-userRouter.post("/register", async (req, res) => {
-  try {
-    const {
-      email,
-      password,
-      firstName,
-      lastName,
-      middleName,
-      role,
-      birthdate,
-      age,
-      adminUserId, // Pass the admin user ID who is creating the user
-    } = req.body;
+userRouter.post(
+  "/register",
+  profileUpload.single("profilePicture"),
+  async (req, res) => {
+    try {
+      const {
+        email,
+        password,
+        firstName,
+        lastName,
+        middleName,
+        role,
+        birthdate,
+        age,
+        adminUserId: adminUserIdRaw, // Pass the admin user ID who is creating the user
+        officeId,
+        schoolId,
+        positionId,
+      } = req.body;
 
-    // Validate request body
-    if (!email || !password || !firstName || !lastName) {
+      // Parse adminUserId if it exists (could be string from FormData)
+      const adminUserId = adminUserIdRaw ? parseInt(adminUserIdRaw, 10) : null;
+
+      // Validate request body
+      if (!email || !password || !firstName || !lastName) {
+        return res.status(400).json({
+          success: false,
+          message: "All fields are required",
+        });
+      }
+
+      // Get profile picture path if file was uploaded
+      let profilePicturePath = null;
+      if (req.file) {
+        profilePicturePath = req.file.path;
+      }
+
+      // Call register service
+      const result = await userService.register({
+        email,
+        password,
+        firstName,
+        lastName,
+        middleName,
+        role,
+        birthdate,
+        age,
+        officeId: officeId || null,
+        schoolId: schoolId || null,
+        positionId: positionId || null,
+        profilePicture: profilePicturePath,
+      });
+
+      // Log user creation
+      if (adminUserId) {
+        await activityLogService.logUserCreated(adminUserId, email);
+      } else {
+        await activityLogService.logActivity(
+          result.user.id,
+          "User self-registered"
+        );
+      }
+
+      // Return success response
+      return res.status(201).json({
+        success: true,
+        message: "Registration successful",
+        data: result,
+      });
+    } catch (error) {
+      // Return error response
       return res.status(400).json({
         success: false,
-        message: "All fields are required",
+        message: error.message,
       });
     }
-
-    // Call register service
-    const result = await userService.register({
-      email,
-      password,
-      firstName,
-      lastName,
-      middleName,
-      role,
-      birthdate,
-      age,
-    });
-
-    // Log user creation
-    if (adminUserId) {
-      await activityLogService.logUserCreated(adminUserId, email);
-    } else {
-      await activityLogService.logActivity(result.id, "User self-registered");
-    }
-
-    // Return success response
-    return res.status(201).json({
-      success: true,
-      message: "Registration successful",
-      data: result,
-    });
-  } catch (error) {
-    // Return error response
-    return res.status(400).json({
-      success: false,
-      message: error.message,
-    });
   }
-});
+);
 
 // Login route
 userRouter.post("/login", async (req, res) => {
@@ -246,7 +286,10 @@ userRouter.get("/getUserProfile/:id", async (req, res) => {
 userRouter.delete("/deleteUser/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const { adminUserId } = req.body; // Pass admin user ID who is deleting
+    // Get adminUserId from query parameter (DELETE requests don't typically have body)
+    const adminUserId = req.query.adminUserId
+      ? parseInt(req.query.adminUserId, 10)
+      : null;
 
     // Get user info before deletion
     const userToDelete = await userService.userProfile(id);
@@ -296,27 +339,43 @@ userRouter.put("/updateUser/:id", async (req, res) => {
   }
 });
 
-userRouter.put("/updateProfile/:id", async (req, res) => {
-  try {
-    const id = parseInt(req.params.id, 10);
-    const updatedProfile = await userService.updateProfile(id, req.body);
+userRouter.put(
+  "/updateProfile/:id",
+  profileUpload.single("profilePicture"),
+  async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
 
-    // Log profile update
-    await activityLogService.logProfileUpdated(id);
+      // Get profile picture path if file was uploaded
+      let profilePicturePath = null;
+      if (req.file) {
+        profilePicturePath = req.file.path;
+      }
 
-    return res.status(200).json({
-      success: true,
-      message: "Profile updated successfully",
-      data: updatedProfile,
-    });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+      // Merge profile picture path into request body if file was uploaded
+      const profileData = req.file
+        ? { ...req.body, profilePicture: profilePicturePath }
+        : req.body;
+
+      const updatedProfile = await userService.updateProfile(id, profileData);
+
+      // Log profile update
+      await activityLogService.logProfileUpdated(id);
+
+      return res.status(200).json({
+        success: true,
+        message: "Profile updated successfully",
+        data: updatedProfile,
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
   }
-});
+);
 
 userRouter.patch("/changePassword/:id", async (req, res) => {
   try {

@@ -25,6 +25,89 @@ async function createGradeLevels(data) {
   }
 }
 
+// Grade Levels CRUD
+async function getAllGradeLevels() {
+  try {
+    const gradeLevels = await prisma.gradeLevels.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    return { success: true, data: gradeLevels };
+  } catch (error) {
+    console.error("Error fetching grade levels:", error);
+    return {
+      success: false,
+      message: "Failed to fetch grade levels",
+      error: error.message,
+    };
+  }
+}
+
+async function addGradeLevel(data) {
+  try {
+    const gradeLevel = await prisma.gradeLevels.create({
+      data: {
+        name: data.name,
+        description: data.description,
+      },
+    });
+    return {
+      success: true,
+      message: "Grade level added successfully",
+      data: gradeLevel,
+    };
+  } catch (error) {
+    console.error("Error adding grade level:", error);
+    return {
+      success: false,
+      message: "Failed to add grade level",
+      error: error.message,
+    };
+  }
+}
+
+async function updateGradeLevel(id, data) {
+  try {
+    const gradeLevel = await prisma.gradeLevels.update({
+      where: { id },
+      data: {
+        name: data.name,
+        description: data.description,
+      },
+    });
+    return {
+      success: true,
+      message: "Grade level updated successfully",
+      data: gradeLevel,
+    };
+  } catch (error) {
+    console.error("Error updating grade level:", error);
+    return {
+      success: false,
+      message: "Failed to update grade level",
+      error: error.message,
+    };
+  }
+}
+
+async function deleteGradeLevel(id) {
+  try {
+    await prisma.gradeLevels.delete({
+      where: { id },
+    });
+    return {
+      success: true,
+      message: "Grade level deleted successfully",
+    };
+  } catch (error) {
+    console.error("Error deleting grade level:", error);
+    return {
+      success: false,
+      message: "Failed to delete grade level",
+      error: error.message,
+    };
+  }
+}
+
 async function createLearningAreas(data) {
   try {
     const learningAreas = await prisma.learningAreas.create({ data });
@@ -77,11 +160,91 @@ async function createStrands(data) {
 
 async function createSubjectType(data) {
   try {
-    const strands = await prisma.subjectType.create({ data });
-    return strands;
+    const subjectType = await prisma.subjectType.create({ data });
+    return { success: true, data: subjectType };
   } catch (error) {
     console.error("Error creating subject type:", error);
     return { success: false, error: error.message };
+  }
+}
+
+async function getAllSubjectTypes() {
+  try {
+    const subjectTypes = await prisma.subjectType.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    return { success: true, data: subjectTypes };
+  } catch (error) {
+    console.error("Error fetching subject types:", error);
+    return {
+      success: false,
+      message: "Failed to fetch subject types",
+      error: error.message,
+    };
+  }
+}
+
+async function addSubjectType(data) {
+  try {
+    const subjectType = await prisma.subjectType.create({
+      data: {
+        name: data.name,
+      },
+    });
+    return {
+      success: true,
+      message: "Subject type added successfully",
+      data: subjectType,
+    };
+  } catch (error) {
+    console.error("Error adding subject type:", error);
+    return {
+      success: false,
+      message: "Failed to add subject type",
+      error: error.message,
+    };
+  }
+}
+
+async function updateSubjectType(id, data) {
+  try {
+    const subjectType = await prisma.subjectType.update({
+      where: { id },
+      data: {
+        name: data.name,
+      },
+    });
+    return {
+      success: true,
+      message: "Subject type updated successfully",
+      data: subjectType,
+    };
+  } catch (error) {
+    console.error("Error updating subject type:", error);
+    return {
+      success: false,
+      message: "Failed to update subject type",
+      error: error.message,
+    };
+  }
+}
+
+async function deleteSubjectType(id) {
+  try {
+    await prisma.subjectType.delete({
+      where: { id },
+    });
+    return {
+      success: true,
+      message: "Subject type deleted successfully",
+    };
+  } catch (error) {
+    console.error("Error deleting subject type:", error);
+    return {
+      success: false,
+      message: "Failed to delete subject type",
+      error: error.message,
+    };
   }
 }
 
@@ -110,6 +273,22 @@ async function deleteMaterial(materialId) {
 }
 
 // Learning Areas CRUD
+async function getAllLearningAreas() {
+  try {
+    const learningAreas = await prisma.learningAreas.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    return { success: true, data: learningAreas };
+  } catch (error) {
+    console.error("Error fetching learning areas:", error);
+    return {
+      success: false,
+      message: "Failed to fetch learning areas",
+      error: error.message,
+    };
+  }
+}
+
 async function addLearningArea(data) {
   try {
     const learningArea = await prisma.learningAreas.create({
@@ -177,6 +356,22 @@ async function deleteLearningArea(id) {
 }
 
 // Components CRUD
+async function getAllComponents() {
+  try {
+    const components = await prisma.component.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    return { success: true, data: components };
+  } catch (error) {
+    console.error("Error fetching components:", error);
+    return {
+      success: false,
+      message: "Failed to fetch components",
+      error: error.message,
+    };
+  }
+}
+
 async function addComponent(data) {
   try {
     const component = await prisma.component.create({
@@ -309,6 +504,22 @@ async function deleteCoreSubject(id) {
 }
 
 // Tracks CRUD
+async function getAllTracks() {
+  try {
+    const tracks = await prisma.track.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    return { success: true, data: tracks };
+  } catch (error) {
+    console.error("Error fetching tracks:", error);
+    return {
+      success: false,
+      message: "Failed to fetch tracks",
+      error: error.message,
+    };
+  }
+}
+
 async function addTrack(data) {
   try {
     const track = await prisma.track.create({
@@ -437,6 +648,25 @@ async function deleteStrand(id) {
     return {
       success: false,
       message: "Failed to delete strand",
+      error: error.message,
+    };
+  }
+}
+
+async function getAllStrands() {
+  try {
+    const strands = await prisma.strand.findMany({
+      include: {
+        track: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return { success: true, data: strands };
+  } catch (error) {
+    console.error("Error fetching strands:", error);
+    return {
+      success: false,
+      message: "Failed to fetch strands",
       error: error.message,
     };
   }
@@ -579,6 +809,22 @@ async function deleteSpecializedSubject(id) {
 }
 
 // Types CRUD
+async function getAllTypes() {
+  try {
+    const types = await prisma.type.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    return { success: true, data: types };
+  } catch (error) {
+    console.error("Error fetching types:", error);
+    return {
+      success: false,
+      message: "Failed to fetch types",
+      error: error.message,
+    };
+  }
+}
+
 async function addType(data) {
   try {
     const type = await prisma.type.create({
@@ -645,6 +891,264 @@ async function deleteType(id) {
   }
 }
 
+// Positions CRUD
+async function getAllPositions() {
+  try {
+    const positions = await prisma.positions.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    return {
+      success: true,
+      data: positions,
+    };
+  } catch (error) {
+    console.error("Error fetching positions:", error);
+    return {
+      success: false,
+      message: "Failed to fetch positions",
+      error: error.message,
+    };
+  }
+}
+
+async function addPosition(data) {
+  try {
+    const position = await prisma.positions.create({
+      data: {
+        name: data.name,
+        description: data.description,
+      },
+    });
+    return {
+      success: true,
+      message: "Position added successfully",
+      data: position,
+    };
+  } catch (error) {
+    console.error("Error adding position:", error);
+    return {
+      success: false,
+      message: "Failed to add position",
+      error: error.message,
+    };
+  }
+}
+
+async function updatePosition(id, data) {
+  try {
+    const position = await prisma.positions.update({
+      where: { id },
+      data: {
+        name: data.name,
+        description: data.description,
+      },
+    });
+    return {
+      success: true,
+      message: "Position updated successfully",
+      data: position,
+    };
+  } catch (error) {
+    console.error("Error updating position:", error);
+    return {
+      success: false,
+      message: "Failed to update position",
+      error: error.message,
+    };
+  }
+}
+
+async function deletePosition(id) {
+  try {
+    await prisma.positions.delete({
+      where: { id },
+    });
+    return {
+      success: true,
+      message: "Position deleted successfully",
+    };
+  } catch (error) {
+    console.error("Error deleting position:", error);
+    return {
+      success: false,
+      message: "Failed to delete position",
+      error: error.message,
+    };
+  }
+}
+
+// Schools CRUD
+async function getAllSchools() {
+  try {
+    const schools = await prisma.schools.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    return {
+      success: true,
+      data: schools,
+    };
+  } catch (error) {
+    console.error("Error fetching schools:", error);
+    return {
+      success: false,
+      message: "Failed to fetch schools",
+      error: error.message,
+    };
+  }
+}
+
+async function addSchool(data) {
+  try {
+    const school = await prisma.schools.create({
+      data: {
+        name: data.name,
+        description: data.description,
+      },
+    });
+    return {
+      success: true,
+      message: "School added successfully",
+      data: school,
+    };
+  } catch (error) {
+    console.error("Error adding school:", error);
+    return {
+      success: false,
+      message: "Failed to add school",
+      error: error.message,
+    };
+  }
+}
+
+async function updateSchool(id, data) {
+  try {
+    const school = await prisma.schools.update({
+      where: { id },
+      data: {
+        name: data.name,
+        description: data.description,
+      },
+    });
+    return {
+      success: true,
+      message: "School updated successfully",
+      data: school,
+    };
+  } catch (error) {
+    console.error("Error updating school:", error);
+    return {
+      success: false,
+      message: "Failed to update school",
+      error: error.message,
+    };
+  }
+}
+
+async function deleteSchool(id) {
+  try {
+    await prisma.schools.delete({
+      where: { id },
+    });
+    return {
+      success: true,
+      message: "School deleted successfully",
+    };
+  } catch (error) {
+    console.error("Error deleting school:", error);
+    return {
+      success: false,
+      message: "Failed to delete school",
+      error: error.message,
+    };
+  }
+}
+
+// Offices CRUD
+async function getAllOffices() {
+  try {
+    const offices = await prisma.offices.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    return {
+      success: true,
+      data: offices,
+    };
+  } catch (error) {
+    console.error("Error fetching offices:", error);
+    return {
+      success: false,
+      message: "Failed to fetch offices",
+      error: error.message,
+    };
+  }
+}
+
+async function addOffice(data) {
+  try {
+    const office = await prisma.offices.create({
+      data: {
+        name: data.name,
+        description: data.description,
+      },
+    });
+    return {
+      success: true,
+      message: "Office added successfully",
+      data: office,
+    };
+  } catch (error) {
+    console.error("Error adding office:", error);
+    return {
+      success: false,
+      message: "Failed to add office",
+      error: error.message,
+    };
+  }
+}
+
+async function updateOffice(id, data) {
+  try {
+    const office = await prisma.offices.update({
+      where: { id },
+      data: {
+        name: data.name,
+        description: data.description,
+      },
+    });
+    return {
+      success: true,
+      message: "Office updated successfully",
+      data: office,
+    };
+  } catch (error) {
+    console.error("Error updating office:", error);
+    return {
+      success: false,
+      message: "Failed to update office",
+      error: error.message,
+    };
+  }
+}
+
+async function deleteOffice(id) {
+  try {
+    await prisma.offices.delete({
+      where: { id },
+    });
+    return {
+      success: true,
+      message: "Office deleted successfully",
+    };
+  } catch (error) {
+    console.error("Error deleting office:", error);
+    return {
+      success: false,
+      message: "Failed to delete office",
+      error: error.message,
+    };
+  }
+}
+
 module.exports = {
   deleteMaterial,
   getAllMaterials,
@@ -657,28 +1161,53 @@ module.exports = {
   createTypes,
   createSubjectType,
   // export other data access functions here
+  getAllLearningAreas,
   addLearningArea,
   updateLearningArea,
   deleteLearningArea,
+  getAllComponents,
   addComponent,
   updateComponent,
   deleteComponent,
   addCoreSubject,
   updateCoreSubject,
   deleteCoreSubject,
+  getAllTracks,
   addTrack,
   updateTrack,
   deleteTrack,
   addStrand,
   updateStrand,
   deleteStrand,
+  getAllStrands,
+  getAllSubjectTypes,
+  addSubjectType,
+  updateSubjectType,
+  deleteSubjectType,
   addAppliedSubject,
   updateAppliedSubject,
   deleteAppliedSubject,
   addSpecializedSubject,
   updateSpecializedSubject,
   deleteSpecializedSubject,
+  getAllTypes,
   addType,
   updateType,
   deleteType,
+  getAllGradeLevels,
+  addGradeLevel,
+  updateGradeLevel,
+  deleteGradeLevel,
+  getAllPositions,
+  addPosition,
+  updatePosition,
+  deletePosition,
+  getAllSchools,
+  addSchool,
+  updateSchool,
+  deleteSchool,
+  getAllOffices,
+  addOffice,
+  updateOffice,
+  deleteOffice,
 };

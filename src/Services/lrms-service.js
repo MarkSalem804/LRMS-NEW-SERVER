@@ -430,7 +430,8 @@ async function fetchAllMaterials() {
       title: material.title,
       description: material.description,
       uploadedAt: material.uploadedAt,
-      downloads: material.downloads,
+      downloads: material.downloads || 0,
+      views: material.views || 0,
       rating: material.rating,
       intendedUsers: material.intendedUsers,
       topic: material.topic,
@@ -439,6 +440,14 @@ async function fetchAllMaterials() {
       educationType: material.educationType,
       materialPath: material.materialPath,
       fileName: material.fileName,
+      // Include IDs for grouping/filtering
+      typeId: material.typeId,
+      gradeLevelId: material.gradeLevelId,
+      learningAreaId: material.learningAreaId,
+      trackId: material.trackId,
+      componentId: material.componentId,
+      strandId: material.strandId,
+      subjectTypeId: material.subjectTypeId,
       // Include names from related entities
       gradeLevelName: material.gradeLevel ? material.gradeLevel.name : null,
       learningAreaName: material.learningArea
@@ -489,7 +498,8 @@ async function getMaterialWithFile(materialId) {
       title: material.title,
       description: material.description,
       uploadedAt: material.uploadedAt,
-      downloads: material.downloads,
+      downloads: material.downloads || 0,
+      views: material.views || 0,
       rating: material.rating,
       intendedUsers: material.intendedUsers,
       topic: material.topic,
@@ -662,6 +672,26 @@ async function deleteStrand(id) {
   return await lrmsData.deleteStrand(id);
 }
 
+async function getAllStrands() {
+  return await lrmsData.getAllStrands();
+}
+
+async function getAllSubjectTypes() {
+  return await lrmsData.getAllSubjectTypes();
+}
+
+async function addSubjectType(data) {
+  return await lrmsData.addSubjectType(data);
+}
+
+async function updateSubjectType(id, data) {
+  return await lrmsData.updateSubjectType(id, data);
+}
+
+async function deleteSubjectType(id) {
+  return await lrmsData.deleteSubjectType(id);
+}
+
 // Applied Subjects CRUD
 async function addAppliedSubject(data) {
   return await lrmsData.addAppliedSubject(data);
@@ -701,6 +731,390 @@ async function deleteType(id) {
   return await lrmsData.deleteType(id);
 }
 
+// Positions CRUD
+async function getAllPositions() {
+  return await lrmsData.getAllPositions();
+}
+
+async function addPosition(data) {
+  return await lrmsData.addPosition(data);
+}
+
+async function updatePosition(id, data) {
+  return await lrmsData.updatePosition(id, data);
+}
+
+async function deletePosition(id) {
+  return await lrmsData.deletePosition(id);
+}
+
+// Schools CRUD
+async function getAllSchools() {
+  return await lrmsData.getAllSchools();
+}
+
+async function addSchool(data) {
+  return await lrmsData.addSchool(data);
+}
+
+async function updateSchool(id, data) {
+  return await lrmsData.updateSchool(id, data);
+}
+
+async function deleteSchool(id) {
+  return await lrmsData.deleteSchool(id);
+}
+
+// Offices CRUD
+async function getAllOffices() {
+  return await lrmsData.getAllOffices();
+}
+
+async function addOffice(data) {
+  return await lrmsData.addOffice(data);
+}
+
+async function updateOffice(id, data) {
+  return await lrmsData.updateOffice(id, data);
+}
+
+async function deleteOffice(id) {
+  return await lrmsData.deleteOffice(id);
+}
+
+// Grade Levels CRUD
+async function getAllGradeLevels() {
+  return await lrmsData.getAllGradeLevels();
+}
+
+async function addGradeLevel(data) {
+  return await lrmsData.addGradeLevel(data);
+}
+
+async function updateGradeLevel(id, data) {
+  return await lrmsData.updateGradeLevel(id, data);
+}
+
+async function deleteGradeLevel(id) {
+  return await lrmsData.deleteGradeLevel(id);
+}
+
+// Learning Areas CRUD - getAll
+async function getAllLearningAreas() {
+  return await lrmsData.getAllLearningAreas();
+}
+
+// Components CRUD - getAll
+async function getAllComponents() {
+  return await lrmsData.getAllComponents();
+}
+
+// Tracks CRUD - getAll
+async function getAllTracks() {
+  return await lrmsData.getAllTracks();
+}
+
+// Types CRUD - getAll
+async function getAllTypes() {
+  return await lrmsData.getAllTypes();
+}
+
+// Function to increment view count for a material
+async function incrementMaterialViews(materialId) {
+  try {
+    const material = await prisma.materials.update({
+      where: { id: materialId },
+      data: {
+        views: {
+          increment: 1,
+        },
+      },
+    });
+    return {
+      success: true,
+      views: material.views || 0,
+    };
+  } catch (error) {
+    console.error("Error incrementing material views:", error);
+    return {
+      success: false,
+      message: "Failed to increment material views",
+      error: error.message,
+    };
+  }
+}
+
+// Function to increment download count for a material
+async function incrementMaterialDownloads(materialId) {
+  try {
+    // First, get the current material to check if downloads is null
+    const currentMaterial = await prisma.materials.findUnique({
+      where: { id: materialId },
+      select: { downloads: true },
+    });
+
+    if (!currentMaterial) {
+      return {
+        success: false,
+        message: "Material not found",
+      };
+    }
+
+    // If downloads is null or undefined, set it to 1, otherwise increment
+    const currentDownloads = currentMaterial.downloads ?? 0;
+    const newDownloads = currentDownloads + 1;
+
+    const material = await prisma.materials.update({
+      where: { id: materialId },
+      data: {
+        downloads: newDownloads,
+      },
+    });
+
+    return {
+      success: true,
+      downloads: material.downloads || 0,
+    };
+  } catch (error) {
+    console.error("Error incrementing material downloads:", error);
+    return {
+      success: false,
+      message: "Failed to increment material downloads",
+      error: error.message,
+    };
+  }
+}
+
+// Function to submit or update a material rating
+async function submitMaterialRating(materialId, userId, rating, suggestions) {
+  try {
+    // Validate rating (1-5)
+    if (!rating || rating < 1 || rating > 5) {
+      return {
+        success: false,
+        message: "Rating must be between 1 and 5",
+      };
+    }
+
+    // Check if user already rated this material
+    const existingRating = await prisma.materialRatings.findUnique({
+      where: {
+        materialId_userId: {
+          materialId: materialId,
+          userId: userId,
+        },
+      },
+    });
+
+    let result;
+    if (existingRating) {
+      // Update existing rating
+      result = await prisma.materialRatings.update({
+        where: { id: existingRating.id },
+        data: {
+          rating: rating,
+          suggestions: suggestions || null,
+        },
+      });
+    } else {
+      // Create new rating
+      result = await prisma.materialRatings.create({
+        data: {
+          materialId: materialId,
+          userId: userId,
+          rating: rating,
+          suggestions: suggestions || null,
+        },
+      });
+    }
+
+    // Calculate and update average rating for the material
+    await updateMaterialAverageRating(materialId);
+
+    return {
+      success: true,
+      message: existingRating
+        ? "Rating updated successfully"
+        : "Rating submitted successfully",
+      rating: result,
+    };
+  } catch (error) {
+    console.error("Error submitting material rating:", error);
+    return {
+      success: false,
+      message: "Failed to submit rating",
+      error: error.message,
+    };
+  }
+}
+
+// Helper function to calculate and update average rating
+async function updateMaterialAverageRating(materialId) {
+  try {
+    const ratings = await prisma.materialRatings.findMany({
+      where: { materialId: materialId },
+      select: { rating: true },
+    });
+
+    if (ratings.length === 0) {
+      await prisma.materials.update({
+        where: { id: materialId },
+        data: { rating: null },
+      });
+      return;
+    }
+
+    const averageRating =
+      ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length;
+
+    await prisma.materials.update({
+      where: { id: materialId },
+      data: { rating: averageRating },
+    });
+  } catch (error) {
+    console.error("Error updating material average rating:", error);
+  }
+}
+
+// Function to get all ratings for a material
+async function getMaterialRatings(materialId) {
+  try {
+    const ratings = await prisma.materialRatings.findMany({
+      where: { materialId: materialId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Calculate average rating
+    const averageRating =
+      ratings.length > 0
+        ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length
+        : 0;
+
+    return {
+      success: true,
+      ratings: ratings,
+      averageRating: averageRating,
+      totalRatings: ratings.length,
+    };
+  } catch (error) {
+    console.error("Error getting material ratings:", error);
+    return {
+      success: false,
+      message: "Failed to get ratings",
+      error: error.message,
+    };
+  }
+}
+
+// Function to get user's rating for a specific material
+async function getUserRatingForMaterial(materialId, userId) {
+  try {
+    const rating = await prisma.materialRatings.findUnique({
+      where: {
+        materialId_userId: {
+          materialId: materialId,
+          userId: userId,
+        },
+      },
+    });
+
+    return {
+      success: true,
+      rating: rating,
+    };
+  } catch (error) {
+    console.error("Error getting user rating:", error);
+    return {
+      success: false,
+      message: "Failed to get user rating",
+      error: error.message,
+    };
+  }
+}
+
+// Function to update a material rating
+async function updateMaterialRating(ratingId, rating, suggestions) {
+  try {
+    if (!rating || rating < 1 || rating > 5) {
+      return {
+        success: false,
+        message: "Rating must be between 1 and 5",
+      };
+    }
+
+    const updatedRating = await prisma.materialRatings.update({
+      where: { id: ratingId },
+      data: {
+        rating: rating,
+        suggestions: suggestions || null,
+      },
+    });
+
+    // Update average rating
+    await updateMaterialAverageRating(updatedRating.materialId);
+
+    return {
+      success: true,
+      message: "Rating updated successfully",
+      rating: updatedRating,
+    };
+  } catch (error) {
+    console.error("Error updating material rating:", error);
+    return {
+      success: false,
+      message: "Failed to update rating",
+      error: error.message,
+    };
+  }
+}
+
+// Function to delete a material rating
+async function deleteMaterialRating(ratingId) {
+  try {
+    const rating = await prisma.materialRatings.findUnique({
+      where: { id: ratingId },
+    });
+
+    if (!rating) {
+      return {
+        success: false,
+        message: "Rating not found",
+      };
+    }
+
+    const materialId = rating.materialId;
+
+    await prisma.materialRatings.delete({
+      where: { id: ratingId },
+    });
+
+    // Update average rating
+    await updateMaterialAverageRating(materialId);
+
+    return {
+      success: true,
+      message: "Rating deleted successfully",
+    };
+  } catch (error) {
+    console.error("Error deleting material rating:", error);
+    return {
+      success: false,
+      message: "Failed to delete rating",
+      error: error.message,
+    };
+  }
+}
+
 module.exports = {
   parseExcelFile,
   checkDuplicateMaterials,
@@ -731,6 +1145,11 @@ module.exports = {
   addStrand,
   updateStrand,
   deleteStrand,
+  getAllStrands,
+  getAllSubjectTypes,
+  addSubjectType,
+  updateSubjectType,
+  deleteSubjectType,
   addAppliedSubject,
   updateAppliedSubject,
   deleteAppliedSubject,
@@ -740,4 +1159,36 @@ module.exports = {
   addType,
   updateType,
   deleteType,
+  getAllPositions,
+  addPosition,
+  updatePosition,
+  deletePosition,
+  getAllSchools,
+  addSchool,
+  updateSchool,
+  deleteSchool,
+  getAllOffices,
+  addOffice,
+  updateOffice,
+  deleteOffice,
+  // Grade Levels CRUD
+  getAllGradeLevels,
+  addGradeLevel,
+  updateGradeLevel,
+  deleteGradeLevel,
+  // Learning Areas CRUD
+  getAllLearningAreas,
+  // Components CRUD
+  getAllComponents,
+  // Tracks CRUD
+  getAllTracks,
+  // Types CRUD
+  getAllTypes,
+  incrementMaterialViews,
+  incrementMaterialDownloads,
+  submitMaterialRating,
+  getMaterialRatings,
+  getUserRatingForMaterial,
+  updateMaterialRating,
+  deleteMaterialRating,
 };
