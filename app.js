@@ -16,7 +16,7 @@ const app = express();
 const corsOptions = require("./src/Middlewares/CORS-conf/cors-options");
 const credentials = require("./src/Middlewares/CORS-conf/credentials");
 const prisma = new PrismaClient();
-const port = process.env.PORT || 5001;
+const port = process.env.PORT || 5005;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -46,33 +46,35 @@ app.use((err, req, res, next) => {
   res.status(500).send("Something went wrong!");
 });
 
-// const options = {
-//   key: fs.readFileSync(
-//     "/etc/letsencrypt/live/sdoic-ilearn.depedimuscity.com/privkey.pem"
-//   ),
-//   cert: fs.readFileSync(
-//     "/etc/letsencrypt/live/sdoic-ilearn.depedimuscity.com/fullchain.pem"
-//   ),
-// };
+const options = {
+  key: fs.readFileSync(
+    "/etc/letsencrypt/live/sdoic-ilearn.depedimuscity.com/privkey.pem"
+  ),
+  cert: fs.readFileSync(
+    "/etc/letsencrypt/live/sdoic-ilearn.depedimuscity.com/fullchain.pem"
+  ),
+};
 
-// const server = https.createServer(options, app);
+const server = https.createServer(options, app);
 
-// server.listen(port, () => {
-//   clear(); // Clear the terminal when the server starts
-//   console.log(`Server running on port ${port}`);
-//   console.log(`Environment: ${process.env.NODE_ENV}`);
-// });
-
-// Create HTTP server for Socket.io
-const server = http.createServer(app);
-
-// Initialize Socket.io
 initSocket(server);
 
 server.listen(port, () => {
   clear(); // Clear the terminal when the server starts
-  console.log(`🚀 Server running on port ${port}`);
-  console.log(`🔌 Socket.io initialized and ready`);
+  console.log(`Server running on port ${port}`);
+  console.log(`Environment: ${process.env.NODE_ENV}`);
 });
+
+// Create HTTP server for Socket.io
+// const server = http.createServer(app);
+
+// Initialize Socket.io
+// initSocket(server);
+
+// server.listen(port, () => {
+//   clear(); // Clear the terminal when the server starts
+//   console.log(`🚀 Server running on port ${port}`);
+//   console.log(`🔌 Socket.io initialized and ready`);
+// });
 
 module.exports = { prisma };

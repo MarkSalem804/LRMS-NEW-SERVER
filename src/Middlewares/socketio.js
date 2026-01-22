@@ -8,7 +8,7 @@ const initSocket = (server) => {
     cors: {
       origin: [
         "http://localhost:5174",
-        "https://ilearn-beta.depedimuscity.com",
+        "https://sdoic-ilearn.depedimuscity.com",
       ],
       methods: ["GET", "POST"],
       credentials: true,
