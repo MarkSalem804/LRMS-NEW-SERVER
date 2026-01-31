@@ -41,6 +41,7 @@ model user {
   otpExpiry        DateTime?
   activityLogs     activityLogs[]
   materialRatings  materialRatings[]
+  savedMaterials   savedMaterials[]
 }
 
 model profile {
@@ -143,6 +144,7 @@ model materials {
   materialPath    String?
   fileName        String?
   materialRatings materialRatings[]
+  savedMaterials  savedMaterials[]
 }
 
 model subjectType {
@@ -236,4 +238,15 @@ model materialRatings {
   updatedAt   DateTime  @updatedAt
 
   @@unique([materialId, userId]) // One rating per user per material
+}
+
+model savedMaterials {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  user       user      @relation(fields: [userId], references: [id])
+  materialId Int
+  material   materials @relation(fields: [materialId], references: [id])
+  createdAt  DateTime  @default(now())
+
+  @@unique([userId, materialId])
 }

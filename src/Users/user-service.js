@@ -363,7 +363,7 @@ async function selfRegister(email) {
           </div>
           
           <div style="text-align: center; margin-top: 30px;">
-            <a href="http://localhost:5173" style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
+            <a href="https://sdoic-ilearn.depedimuscity.com" style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">
               Login to ILeaRN Portal
             </a>
           </div>

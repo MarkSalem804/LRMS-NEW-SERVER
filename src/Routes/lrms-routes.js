@@ -438,6 +438,8 @@ lrmsRouter.get("/view-material/:materialId", async (req, res) => {
       "http://localhost:5173",
       "http://localhost:5175",
       "https://ilearn-beta.depedimuscity.com",
+      "https://sdoic-ilearn.depedimuscity.com",
+      "https://sdoic-ilearn.depedimuscity.com:5005",
     ];
 
     // Add CORS headers - embed/iframe needs CORS even for same-host different-port
