@@ -1,25 +1,10 @@
 const express = require("express");
+const { authenticateToken } = require("../Middlewares/authMiddleware");
 const userRouter = express.Router();
 const userService = require("./user-service");
 const { emitEvent, getOnlineUsers } = require("../Middlewares/socketio");
 const activityLogService = require("../ActivityLogs/activity-log-service");
-const multer = require("multer");
-const path = require("path");
-
-// Multer configuration for profile picture uploads
-const profileStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/profiles/"); // Destination folder
-  },
-  filename: function (req, file, cb) {
-    // Generate unique filename: timestamp-originalname
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    const basename = path.basename(file.originalname, ext);
-    cb(null, basename + "-" + uniqueSuffix + ext);
-  },
-});
-const profileUpload = multer({ storage: profileStorage });
+const { profileUpload } = require("../Middlewares/fileUpload");
 
 userRouter.get("/online-users", async (req, res) => {
   try {
@@ -78,6 +63,7 @@ userRouter.post("/self-register", async (req, res) => {
 
 userRouter.post(
   "/register",
+  authenticateToken,
   profileUpload.single("profilePicture"),
   async (req, res) => {
     try {
@@ -185,6 +171,14 @@ userRouter.post("/login", async (req, res) => {
     // Log successful login
     await activityLogService.logLogin(result.user.id, result.user.email);
 
+    // Set HTTP-only cookie
+    res.cookie("lrms-token", result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    });
+
     return res.status(200).json({
       success: true,
       message: "Login successful",
@@ -213,6 +207,14 @@ userRouter.post("/verify-otp", async (req, res) => {
 
     // Log successful login after OTP verification
     await activityLogService.logLogin(result.user.id, result.user.email);
+
+    // Set HTTP-only cookie
+    res.cookie("lrms-token", result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    });
 
     return res.status(200).json({
       success: true,
@@ -341,6 +343,7 @@ userRouter.put("/updateUser/:id", async (req, res) => {
 
 userRouter.put(
   "/updateProfile/:id",
+  authenticateToken,
   profileUpload.single("profilePicture"),
   async (req, res) => {
     try {
@@ -477,6 +480,53 @@ userRouter.patch("/toggle-two-factor/:userId", async (req, res) => {
       message: error.message,
     });
   }
+});
+
+// Token verification route
+userRouter.get("/verify", authenticateToken, async (req, res) => {
+  try {
+    // req.user is attached by authenticateToken middleware
+    const userProfile = await userService.userProfile(req.user.userId);
+    
+    // Refresh cookie on every verification to extend session
+    const authHeader = req.headers["authorization"];
+    const token = (authHeader && authHeader.split(" ")[1]) || req.cookies["lrms-token"];
+
+    if (token) {
+      res.cookie("lrms-token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 24 * 60 * 60 * 1000,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Token is valid",
+      data: {
+        user: userProfile,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to verify token",
+    });
+  }
+});
+
+// Logout route
+userRouter.post("/logout", (req, res) => {
+  res.clearCookie("lrms-token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+  });
+  return res.status(200).json({
+    success: true,
+    message: "Logged out successfully",
+  });
 });
 
 module.exports = userRouter;

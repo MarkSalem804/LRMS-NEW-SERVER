@@ -31,7 +31,8 @@ const authenticateToken = (req, res, next) => {
   );
   console.log("🔍 [Auth Middleware] All headers:", Object.keys(req.headers));
 
-  const token = authHeader && authHeader.split(" ")[1]; // Extract token after "Bearer "
+  const tokenHeader = authHeader && authHeader.split(" ")[1];
+  const token = tokenHeader || req.cookies["lrms-token"];
 
   console.log(
     "🔍 [Auth Middleware] Extracted token:",

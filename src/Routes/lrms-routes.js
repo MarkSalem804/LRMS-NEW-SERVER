@@ -1,21 +1,8 @@
 const express = require("express");
 const lrmsRouter = express.Router();
-const multer = require("multer");
-const upload = multer({ dest: "uploads/" }); // Temporary destination for uploaded files
-const path = require("path");
-const fs = require("fs");
-
-// Multer configuration for material file uploads
-const materialStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/materials/"); // Destination folder
-  },
-  filename: function (req, file, cb) {
-    // Use the original file name
-    cb(null, file.originalname);
-  },
-});
-const materialUpload = multer({ storage: materialStorage });
+const {
+  materialUpload,
+} = require("../Middlewares/fileUpload");
 
 const lrmsService = require("../Services/lrms-service"); // Import the service function
 const activityLogService = require("../ActivityLogs/activity-log-service");
@@ -23,7 +10,8 @@ const { authenticateToken } = require("../Middlewares/authMiddleware"); // JWT a
 
 lrmsRouter.post(
   "/upload-materials",
-  upload.single("excelFile"),
+  authenticateToken,
+  materialUpload.single("excelFile"),
   async (req, res) => {
     if (!req.file) {
       return res
@@ -263,6 +251,7 @@ lrmsRouter.post("/create-subject-types", async (req, res) => {
 
 lrmsRouter.post(
   "/upload-material-file/:materialId",
+  authenticateToken,
   materialUpload.single("materialFile"), // 'materialFile' is the field name for the file input
   async (req, res) => {
     const materialId = parseInt(req.params.materialId, 10);
