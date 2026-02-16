@@ -1169,7 +1169,7 @@ lrmsRouter.delete("/positions/:id", authenticateToken, async (req, res) => {
 });
 
 // Schools CRUD Routes
-lrmsRouter.get("/schools", authenticateToken, async (req, res) => {
+lrmsRouter.get("/schools", async (req, res) => {
   try {
     const result = await lrmsService.getAllSchools();
     return res.status(200).json(result);
