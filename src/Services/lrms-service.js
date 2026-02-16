@@ -153,6 +153,7 @@ const parseExcelFile = async (filePath) => {
       const uploadedAt = row["Uploaded At"]; // Assuming 'Uploaded At' header
       const intendedUsers = row["Intended Users"]; // Using 'Intended Users' as requested
       const topic = row["Topic"];
+      const competencies = row["Competencies"];
       const language = row["Language"];
       const objective = row["Objective"];
       const educationType = row["Education Type"]; // Assuming 'Education Type' header
@@ -173,6 +174,7 @@ const parseExcelFile = async (filePath) => {
         uploadedAt: uploadedAt ? new Date(uploadedAt) : new Date(), // Use 'Uploaded At' or current date
         intendedUsers: intendedUsers,
         topic: topic,
+        competencies: competencies,
         language: language,
         objective: objective,
         educationType: educationType,
@@ -200,6 +202,7 @@ const parseExcelFile = async (filePath) => {
       const uploadedAt = row["Uploaded At"]; // Assuming 'Uploaded At' header
       const intendedUsers = row["Intended Users"]; // Using 'Intended Users' as requested
       const topic = row["Topic"];
+      const competencies = row["Competencies"];
       const language = row["Language"];
       const objective = row["Objective"];
       const educationType = row["Education Type"]; // Assuming 'Education Type' header
@@ -220,6 +223,7 @@ const parseExcelFile = async (filePath) => {
         uploadedAt: uploadedAt ? new Date(uploadedAt) : new Date(), // Use 'Uploaded At' or current date
         intendedUsers: intendedUsers,
         topic: topic,
+        competencies: competencies,
         language: language,
         objective: objective,
         educationType: educationType,
@@ -371,6 +375,7 @@ async function updateMaterialWithFile(materialId, materialPath, fileName) {
       rating: updatedMaterial.rating,
       intendedUsers: updatedMaterial.intendedUsers,
       topic: updatedMaterial.topic,
+      competencies: updatedMaterial.competencies,
       language: updatedMaterial.language,
       objective: updatedMaterial.objective,
       educationType: updatedMaterial.educationType,
@@ -435,6 +440,7 @@ async function fetchAllMaterials() {
       rating: material.rating,
       intendedUsers: material.intendedUsers,
       topic: material.topic,
+      competencies: material.competencies,
       language: material.language,
       objective: material.objective,
       educationType: material.educationType,
@@ -503,6 +509,7 @@ async function getMaterialWithFile(materialId) {
       rating: material.rating,
       intendedUsers: material.intendedUsers,
       topic: material.topic,
+      competencies: material.competencies,
       language: material.language,
       objective: material.objective,
       educationType: material.educationType,

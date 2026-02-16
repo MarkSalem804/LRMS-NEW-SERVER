@@ -879,7 +879,7 @@ lrmsRouter.delete("/delete-track/:id", async (req, res) => {
 });
 
 // Strands CRUD Routes
-lrmsRouter.get("/strands", async (req, res) => {
+lrmsRouter.get("/strands", authenticateToken, async (req, res) => {
   try {
     const result = await lrmsService.getAllStrands();
     return res.status(200).json(result);
@@ -935,7 +935,7 @@ lrmsRouter.delete("/strands/:id", authenticateToken, async (req, res) => {
 });
 
 // Legacy routes for backward compatibility
-lrmsRouter.post("/add-strand", async (req, res) => {
+lrmsRouter.post("/add-strand", authenticateToken, async (req, res) => {
   try {
     const { name, trackId } = req.body;
     const result = await lrmsService.addStrand({ name, trackId });
@@ -948,7 +948,7 @@ lrmsRouter.post("/add-strand", async (req, res) => {
   }
 });
 
-lrmsRouter.put("/update-strand/:id", async (req, res) => {
+lrmsRouter.put("/update-strand/:id",authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, trackId } = req.body;
@@ -965,7 +965,7 @@ lrmsRouter.put("/update-strand/:id", async (req, res) => {
   }
 });
 
-lrmsRouter.delete("/delete-strand/:id", async (req, res) => {
+lrmsRouter.delete("/delete-strand/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const result = await lrmsService.deleteStrand(parseInt(id));
@@ -978,7 +978,7 @@ lrmsRouter.delete("/delete-strand/:id", async (req, res) => {
   }
 });
 
-lrmsRouter.post("/add-applied-subject", async (req, res) => {
+lrmsRouter.post("/add-applied-subject", authenticateToken, async (req, res) => {
   try {
     const { name, trackId } = req.body;
     const result = await lrmsService.addAppliedSubject({ name, trackId });
@@ -991,7 +991,7 @@ lrmsRouter.post("/add-applied-subject", async (req, res) => {
   }
 });
 
-lrmsRouter.put("/update-applied-subject/:id", async (req, res) => {
+lrmsRouter.put("/update-applied-subject/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, trackId } = req.body;
@@ -1008,7 +1008,7 @@ lrmsRouter.put("/update-applied-subject/:id", async (req, res) => {
   }
 });
 
-lrmsRouter.delete("/delete-applied-subject/:id", async (req, res) => {
+lrmsRouter.delete("/delete-applied-subject/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const result = await lrmsService.deleteAppliedSubject(parseInt(id));
@@ -1021,7 +1021,7 @@ lrmsRouter.delete("/delete-applied-subject/:id", async (req, res) => {
   }
 });
 
-lrmsRouter.post("/add-specialized-subject", async (req, res) => {
+lrmsRouter.post("/add-specialized-subject", authenticateToken, async (req, res) => {
   try {
     const { name, trackId, strandId } = req.body;
     const result = await lrmsService.addSpecializedSubject({
@@ -1038,7 +1038,7 @@ lrmsRouter.post("/add-specialized-subject", async (req, res) => {
   }
 });
 
-lrmsRouter.put("/update-specialized-subject/:id", async (req, res) => {
+lrmsRouter.put("/update-specialized-subject/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, trackId, strandId } = req.body;
@@ -1056,7 +1056,7 @@ lrmsRouter.put("/update-specialized-subject/:id", async (req, res) => {
   }
 });
 
-lrmsRouter.delete("/delete-specialized-subject/:id", async (req, res) => {
+lrmsRouter.delete("/delete-specialized-subject/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const result = await lrmsService.deleteSpecializedSubject(parseInt(id));
@@ -1069,7 +1069,7 @@ lrmsRouter.delete("/delete-specialized-subject/:id", async (req, res) => {
   }
 });
 
-lrmsRouter.post("/add-type", async (req, res) => {
+lrmsRouter.post("/add-type", authenticateToken, async (req, res) => {
   try {
     const { name, description } = req.body;
     const result = await lrmsService.addType({ name, description });
@@ -1082,7 +1082,7 @@ lrmsRouter.post("/add-type", async (req, res) => {
   }
 });
 
-lrmsRouter.put("/update-type/:id", async (req, res) => {
+lrmsRouter.put("/update-type/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description } = req.body;
@@ -1099,7 +1099,7 @@ lrmsRouter.put("/update-type/:id", async (req, res) => {
   }
 });
 
-lrmsRouter.delete("/delete-type/:id", async (req, res) => {
+lrmsRouter.delete("/delete-type/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const result = await lrmsService.deleteType(parseInt(id));
@@ -1113,7 +1113,7 @@ lrmsRouter.delete("/delete-type/:id", async (req, res) => {
 });
 
 // Positions CRUD Routes
-lrmsRouter.get("/positions", async (req, res) => {
+lrmsRouter.get("/positions", authenticateToken, async (req, res) => {
   try {
     const result = await lrmsService.getAllPositions();
     return res.status(200).json(result);
@@ -1169,7 +1169,7 @@ lrmsRouter.delete("/positions/:id", authenticateToken, async (req, res) => {
 });
 
 // Schools CRUD Routes
-lrmsRouter.get("/schools", async (req, res) => {
+lrmsRouter.get("/schools", authenticateToken, async (req, res) => {
   try {
     const result = await lrmsService.getAllSchools();
     return res.status(200).json(result);
@@ -1225,7 +1225,7 @@ lrmsRouter.delete("/schools/:id", authenticateToken, async (req, res) => {
 });
 
 // Offices CRUD Routes
-lrmsRouter.get("/offices", async (req, res) => {
+lrmsRouter.get("/offices", authenticateToken, async (req, res) => {
   try {
     const result = await lrmsService.getAllOffices();
     return res.status(200).json(result);
@@ -1281,7 +1281,7 @@ lrmsRouter.delete("/offices/:id", authenticateToken, async (req, res) => {
 });
 
 // Grade Levels CRUD Routes
-lrmsRouter.get("/grade-levels", async (req, res) => {
+lrmsRouter.get("/grade-levels", authenticateToken, async (req, res) => {
   try {
     const result = await lrmsService.getAllGradeLevels();
     return res.status(200).json(result);
@@ -1337,7 +1337,7 @@ lrmsRouter.delete("/grade-levels/:id", authenticateToken, async (req, res) => {
 });
 
 // Learning Areas CRUD Routes
-lrmsRouter.get("/learning-areas", async (req, res) => {
+lrmsRouter.get("/learning-areas", authenticateToken, async (req, res) => {
   try {
     const result = await lrmsService.getAllLearningAreas();
     return res.status(200).json(result);
@@ -1397,7 +1397,7 @@ lrmsRouter.delete(
 );
 
 // Components CRUD Routes
-lrmsRouter.get("/components", async (req, res) => {
+lrmsRouter.get("/components", authenticateToken, async (req, res) => {
   try {
     const result = await lrmsService.getAllComponents();
     return res.status(200).json(result);
