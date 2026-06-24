@@ -1,4 +1,4 @@
-const XLSX = require("xlsx");
+const ExcelJS = require("exceljs");
 const fs = require("fs");
 const path = require("path");
 
@@ -9,82 +9,77 @@ if (!fs.existsSync(REPORTS_DIR)) {
 }
 
 /**
- * Export activity logs to Excel file
- * @param {Array} logs - Array of activity log objects
- * @param {String} filename - Name of the Excel file (without extension)
- * @returns {Object} - Result object with success status and file path
+ * Generates a timestamp string safe for use in file names.
  */
-const exportActivityLogsToExcel = (logs, filename = "Activity_Logs") => {
+function getTimestamp() {
+  return new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5);
+}
+
+/**
+ * Applies a standard dark-blue header row style.
+ */
+function styleHeaderRow(worksheet) {
+  const headerRow = worksheet.getRow(1);
+  headerRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF1E3A5F" },
+    };
+    cell.alignment = { vertical: "middle", horizontal: "center" };
+    cell.border = { bottom: { style: "thin", color: { argb: "FFD0D0D0" } } };
+  });
+  headerRow.height = 22;
+}
+
+/**
+ * Export activity logs to Excel file (server-side — writes to REPORTS_DIR).
+ * @param {Array} logs - Array of activity log objects
+ * @param {String} filename - Base file name (without extension)
+ * @returns {Object} - Result with success status and file path
+ */
+const exportActivityLogsToExcel = async (logs, filename = "Activity_Logs") => {
   try {
-    // Format data for Excel
-    const formattedData = logs.map((log, index) => ({
-      "#": index + 1,
-      Activity: log.activity || "N/A",
-      "User Name": log.user
-        ? `${log.user.firstName} ${log.user.lastName}`
-        : "System / Unknown",
-      Email: log.user?.email || "N/A",
-      Role: log.user?.role || "N/A",
-      Date: log.createdAt
-        ? new Date(log.createdAt).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })
-        : "N/A",
-      Time: log.createdAt
-        ? new Date(log.createdAt).toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-          })
-        : "N/A",
-      "Full Timestamp": log.createdAt
-        ? new Date(log.createdAt).toLocaleString("en-US")
-        : "N/A",
-    }));
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "ILeaRN Portal";
+    workbook.created = new Date();
 
-    // Create workbook
-    const wb = XLSX.utils.book_new();
+    const worksheet = workbook.addWorksheet("Activity Logs");
 
-    // Create worksheet from data
-    const ws = XLSX.utils.json_to_sheet(formattedData);
-
-    // Set column widths
-    const columnWidths = [
-      { wch: 5 }, // #
-      { wch: 50 }, // Activity
-      { wch: 20 }, // User Name
-      { wch: 30 }, // Email
-      { wch: 12 }, // Role
-      { wch: 15 }, // Date
-      { wch: 12 }, // Time
-      { wch: 25 }, // Full Timestamp
+    worksheet.columns = [
+      { header: "#",              key: "num",       width: 6  },
+      { header: "Activity",      key: "activity",  width: 52 },
+      { header: "User Name",     key: "userName",  width: 22 },
+      { header: "Email",         key: "email",     width: 32 },
+      { header: "Role",          key: "role",      width: 14 },
+      { header: "Date",          key: "date",      width: 16 },
+      { header: "Time",          key: "time",      width: 14 },
+      { header: "Full Timestamp", key: "timestamp", width: 26 },
     ];
-    ws["!cols"] = columnWidths;
 
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, "Activity Logs");
+    styleHeaderRow(worksheet);
 
-    // Generate filename with timestamp
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, "-")
-      .slice(0, -5);
-    const fileName = `${filename}_${timestamp}.xlsx`;
+    logs.forEach((log, index) => {
+      const createdAt = log.createdAt ? new Date(log.createdAt) : null;
+      worksheet.addRow({
+        num:       index + 1,
+        activity:  log.activity || "N/A",
+        userName:  log.user ? `${log.user.firstName} ${log.user.lastName}` : "System / Unknown",
+        email:     log.user?.email || "N/A",
+        role:      log.user?.role  || "N/A",
+        date:      createdAt ? createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A",
+        time:      createdAt ? createdAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "N/A",
+        timestamp: createdAt ? createdAt.toLocaleString("en-US") : "N/A",
+      });
+    });
+
+    const fileName = `${filename}_${getTimestamp()}.xlsx`;
     const filePath = path.join(REPORTS_DIR, fileName);
-
-    // Write file to server
-    XLSX.writeFile(wb, filePath);
+    await workbook.xlsx.writeFile(filePath);
 
     console.log(`✅ Excel report generated: ${fileName}`);
-
-    return {
-      success: true,
-      fileName,
-      filePath,
-      recordCount: logs.length,
-    };
+    return { success: true, fileName, filePath, recordCount: logs.length };
   } catch (error) {
     console.error("❌ Error exporting to Excel:", error);
     return { success: false, error: error.message };
@@ -92,139 +87,120 @@ const exportActivityLogsToExcel = (logs, filename = "Activity_Logs") => {
 };
 
 /**
- * Export activity logs with summary sheet
- * @param {Array} logs - Array of activity log objects
- * @param {Object} stats - Statistics object
- * @param {String} filename - Name of the Excel file
- * @returns {Object} - Result object with success status and file path
+ * Export activity logs with summary sheet (server-side).
+ * @param {Array}  logs     - Array of activity log objects
+ * @param {Object} stats    - Statistics object
+ * @param {String} filename - Base file name
+ * @returns {Object} - Result with success status and file path
  */
-const exportActivityLogsWithSummary = (
+const exportActivityLogsWithSummary = async (
   logs,
   stats,
   filename = "Activity_Logs_Report"
 ) => {
   try {
-    // Create workbook
-    const wb = XLSX.utils.book_new();
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "ILeaRN Portal";
+    workbook.created = new Date();
 
-    // 1. Summary Sheet
-    const summaryData = [
-      ["Activity Logs Report"],
-      ["Generated On:", new Date().toLocaleString("en-US")],
-      [],
-      ["Summary Statistics"],
-      ["Total Activities:", stats.totalCount || logs.length],
-      ["Total Users:", stats.totalUsers || 0],
-      ["Today's Activities:", stats.todayCount || 0],
-      ["Active Users Today:", stats.activeUsersToday || 0],
-      [],
-      ["Activity Types Breakdown"],
+    // ── 1. Summary Sheet ───────────────────────────────────────────────────────
+    const wsSummary = workbook.addWorksheet("Summary");
+    wsSummary.columns = [
+      { key: "label", width: 28 },
+      { key: "value", width: 22 },
     ];
 
-    // Add activity type counts
+    // Title cell
+    wsSummary.mergeCells("A1:B1");
+    const titleCell = wsSummary.getCell("A1");
+    titleCell.value = "Activity Logs Report";
+    titleCell.font = { bold: true, size: 14, color: { argb: "FF1E3A5F" } };
+    titleCell.alignment = { horizontal: "center" };
+
+    wsSummary.addRow(["Generated On:", new Date().toLocaleString("en-US")]);
+    wsSummary.addRow([]);
+    wsSummary.addRow(["Summary Statistics"]);
+    wsSummary.addRow(["Total Activities:",    stats.totalCount         || logs.length]);
+    wsSummary.addRow(["Total Users:",         stats.totalUsers         || 0]);
+    wsSummary.addRow(["Today's Activities:",  stats.todayCount         || 0]);
+    wsSummary.addRow(["Active Users Today:",  stats.activeUsersToday   || 0]);
+    wsSummary.addRow([]);
+    wsSummary.addRow(["Activity Types Breakdown"]);
+
     if (stats.activityCounts) {
       Object.entries(stats.activityCounts).forEach(([type, count]) => {
-        summaryData.push([type, count]);
+        wsSummary.addRow([type, count]);
       });
     }
 
-    const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-    wsSummary["!cols"] = [{ wch: 25 }, { wch: 20 }];
-    XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
-
-    // 2. Detailed Logs Sheet
-    const formattedData = logs.map((log, index) => ({
-      "#": index + 1,
-      Activity: log.activity || "N/A",
-      "User Name": log.user
-        ? `${log.user.firstName} ${log.user.lastName}`
-        : "System / Unknown",
-      Email: log.user?.email || "N/A",
-      Role: log.user?.role || "N/A",
-      Date: log.createdAt
-        ? new Date(log.createdAt).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })
-        : "N/A",
-      Time: log.createdAt
-        ? new Date(log.createdAt).toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-          })
-        : "N/A",
-    }));
-
-    const wsLogs = XLSX.utils.json_to_sheet(formattedData);
-    wsLogs["!cols"] = [
-      { wch: 5 },
-      { wch: 50 },
-      { wch: 20 },
-      { wch: 30 },
-      { wch: 12 },
-      { wch: 15 },
-      { wch: 12 },
+    // ── 2. Detailed Logs Sheet ─────────────────────────────────────────────────
+    const wsLogs = workbook.addWorksheet("Activity Logs");
+    wsLogs.columns = [
+      { header: "#",          key: "num",      width: 6  },
+      { header: "Activity",   key: "activity", width: 52 },
+      { header: "User Name",  key: "userName", width: 22 },
+      { header: "Email",      key: "email",    width: 32 },
+      { header: "Role",       key: "role",     width: 14 },
+      { header: "Date",       key: "date",     width: 16 },
+      { header: "Time",       key: "time",     width: 14 },
     ];
-    XLSX.utils.book_append_sheet(wb, wsLogs, "Activity Logs");
+    styleHeaderRow(wsLogs);
 
-    // 3. User Activity Sheet (grouped by user)
+    logs.forEach((log, index) => {
+      const createdAt = log.createdAt ? new Date(log.createdAt) : null;
+      wsLogs.addRow({
+        num:      index + 1,
+        activity: log.activity || "N/A",
+        userName: log.user ? `${log.user.firstName} ${log.user.lastName}` : "System / Unknown",
+        email:    log.user?.email || "N/A",
+        role:     log.user?.role  || "N/A",
+        date:     createdAt ? createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A",
+        time:     createdAt ? createdAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "N/A",
+      });
+    });
+
+    // ── 3. User Activity Summary Sheet ─────────────────────────────────────────
+    const wsUsers = workbook.addWorksheet("User Activity Summary");
+    wsUsers.columns = [
+      { header: "#",                key: "num",      width: 6  },
+      { header: "User Name",        key: "userName", width: 22 },
+      { header: "Email",            key: "email",    width: 32 },
+      { header: "Role",             key: "role",     width: 14 },
+      { header: "Total Activities", key: "total",    width: 18 },
+    ];
+    styleHeaderRow(wsUsers);
+
     const userActivityMap = new Map();
     logs.forEach((log) => {
       if (log.user) {
-        const userId = log.user.email;
-        if (!userActivityMap.has(userId)) {
-          userActivityMap.set(userId, {
-            name: `${log.user.firstName} ${log.user.lastName}`,
+        const key = log.user.email;
+        if (!userActivityMap.has(key)) {
+          userActivityMap.set(key, {
+            name:  `${log.user.firstName} ${log.user.lastName}`,
             email: log.user.email,
-            role: log.user.role,
+            role:  log.user.role,
             count: 0,
-            activities: [],
           });
         }
-        const userData = userActivityMap.get(userId);
-        userData.count++;
-        userData.activities.push({
-          activity: log.activity,
-          date: log.createdAt,
-        });
+        userActivityMap.get(key).count++;
       }
     });
 
-    const userSummaryData = Array.from(userActivityMap.values()).map(
-      (user, index) => ({
-        "#": index + 1,
-        "User Name": user.name,
-        Email: user.email,
-        Role: user.role,
-        "Total Activities": user.count,
-      })
-    );
+    Array.from(userActivityMap.values()).forEach((user, index) => {
+      wsUsers.addRow({
+        num:      index + 1,
+        userName: user.name,
+        email:    user.email,
+        role:     user.role,
+        total:    user.count,
+      });
+    });
 
-    const wsUsers = XLSX.utils.json_to_sheet(userSummaryData);
-    wsUsers["!cols"] = [
-      { wch: 5 },
-      { wch: 20 },
-      { wch: 30 },
-      { wch: 12 },
-      { wch: 15 },
-    ];
-    XLSX.utils.book_append_sheet(wb, wsUsers, "User Activity Summary");
-
-    // Generate filename with timestamp
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, "-")
-      .slice(0, -5);
-    const fileName = `${filename}_${timestamp}.xlsx`;
+    const fileName = `${filename}_${getTimestamp()}.xlsx`;
     const filePath = path.join(REPORTS_DIR, fileName);
-
-    // Write file to server
-    XLSX.writeFile(wb, filePath);
+    await workbook.xlsx.writeFile(filePath);
 
     console.log(`✅ Complete report generated: ${fileName}`);
-
     return {
       success: true,
       fileName,
@@ -239,28 +215,19 @@ const exportActivityLogsWithSummary = (
 };
 
 /**
- * Get list of all generated reports
- * @returns {Array} - Array of report files with metadata
+ * Get list of all generated reports.
  */
 const getGeneratedReports = () => {
   try {
     const files = fs.readdirSync(REPORTS_DIR);
-    const reports = files
+    return files
       .filter((file) => file.endsWith(".xlsx"))
       .map((file) => {
         const filePath = path.join(REPORTS_DIR, file);
         const stats = fs.statSync(filePath);
-        return {
-          fileName: file,
-          filePath,
-          size: stats.size,
-          createdAt: stats.birthtime,
-          modifiedAt: stats.mtime,
-        };
+        return { fileName: file, filePath, size: stats.size, createdAt: stats.birthtime, modifiedAt: stats.mtime };
       })
-      .sort((a, b) => b.createdAt - a.createdAt); // Most recent first
-
-    return reports;
+      .sort((a, b) => b.createdAt - a.createdAt);
   } catch (error) {
     console.error("❌ Error getting generated reports:", error);
     return [];
@@ -268,23 +235,14 @@ const getGeneratedReports = () => {
 };
 
 /**
- * Delete a report file
- * @param {String} fileName - Name of the file to delete
- * @returns {Object} - Result object with success status
+ * Delete a specific report file.
  */
 const deleteReport = (fileName) => {
   try {
     const filePath = path.join(REPORTS_DIR, fileName);
-
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      return { success: false, error: "File not found" };
-    }
-
-    // Delete file
+    if (!fs.existsSync(filePath)) return { success: false, error: "File not found" };
     fs.unlinkSync(filePath);
     console.log(`🗑️ Report deleted: ${fileName}`);
-
     return { success: true, fileName };
   } catch (error) {
     console.error("❌ Error deleting report:", error);
@@ -293,23 +251,18 @@ const deleteReport = (fileName) => {
 };
 
 /**
- * Delete old reports (older than specified days)
- * @param {Number} daysToKeep - Number of days to keep reports
- * @returns {Object} - Result object with count of deleted files
+ * Delete old reports older than the specified number of days.
  */
 const deleteOldReports = (daysToKeep = 30) => {
   try {
     const files = fs.readdirSync(REPORTS_DIR);
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
-
     let deletedCount = 0;
-
     files.forEach((file) => {
       if (file.endsWith(".xlsx")) {
         const filePath = path.join(REPORTS_DIR, file);
         const stats = fs.statSync(filePath);
-
         if (stats.birthtime < cutoffDate) {
           fs.unlinkSync(filePath);
           deletedCount++;
@@ -317,9 +270,7 @@ const deleteOldReports = (daysToKeep = 30) => {
         }
       }
     });
-
     console.log(`✅ Deleted ${deletedCount} old reports`);
-
     return { success: true, deletedCount };
   } catch (error) {
     console.error("❌ Error deleting old reports:", error);

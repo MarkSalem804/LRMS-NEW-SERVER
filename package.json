@@ -28,6 +28,7 @@
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "dotenv": "^16.5.0",
+    "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "express-validator": "^7.2.1",
     "fs": "^0.0.1-security",
@@ -38,7 +39,6 @@
     "path": "^0.12.7",
     "prisma": "^6.8.1",
     "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1",
-    "xlsx": "^0.18.5"
+    "socket.io-client": "^4.8.1"
   }
 }

@@ -258,6 +258,95 @@ async function getAllMaterials() {
   }
 }
 
+async function getMaterialsPaginated({
+  page = 1,
+  limit = 10,
+  search = "",
+  type = "",
+  grade = "",
+  area = "",
+  component = "",
+  track = "",
+  strand = "",
+  subjectType = "",
+  savedOnly = false,
+  userId = null,
+} = {}) {
+  try {
+    const skip = (page - 1) * limit;
+
+    // Build dynamic where clause
+    const where = {};
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    if (type) {
+      where.type = { name: type };
+    }
+
+    if (grade) {
+      where.gradeLevel = { name: grade };
+    }
+
+    if (area) {
+      where.learningArea = { name: area };
+    }
+
+    if (component) {
+      where.component = { name: component };
+    }
+
+    if (track) {
+      where.track = { name: track };
+    }
+
+    if (strand) {
+      where.strand = { name: strand };
+    }
+
+    if (subjectType) {
+      where.subjectType = { name: subjectType };
+    }
+
+    // Filter to only saved materials for a specific user
+    if (savedOnly && userId) {
+      where.savedMaterials = {
+        some: { userId: parseInt(userId) },
+      };
+    }
+
+    const [total, data] = await Promise.all([
+      prisma.materials.count({ where }),
+      prisma.materials.findMany({
+        where,
+        include: {
+          gradeLevel: true,
+          learningArea: true,
+          track: true,
+          component: true,
+          strand: true,
+          type: true,
+          subjectType: true,
+        },
+        orderBy: { uploadedAt: "desc" },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    return { total, data };
+  } catch (error) {
+    console.error("Error fetching paginated materials!", error);
+    throw new Error("Failed to fetch materials: " + error.message);
+  }
+}
+
+
 async function deleteMaterial(materialId) {
   try {
     const data = await prisma.materials.delete({
@@ -1152,6 +1241,7 @@ async function deleteOffice(id) {
 module.exports = {
   deleteMaterial,
   getAllMaterials,
+  getMaterialsPaginated,
   saveMaterialsToDatabase,
   createGradeLevels,
   createLearningAreas,

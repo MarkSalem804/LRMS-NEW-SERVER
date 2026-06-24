@@ -486,7 +486,7 @@ userRouter.patch("/toggle-two-factor/:userId", async (req, res) => {
 userRouter.get("/verify", authenticateToken, async (req, res) => {
   try {
     // req.user is attached by authenticateToken middleware
-    const userProfile = await userService.userProfile(req.user.userId);
+    const user = await userService.getUserById(req.user.userId);
     
     // Refresh cookie on every verification to extend session
     const authHeader = req.headers["authorization"];
@@ -505,7 +505,7 @@ userRouter.get("/verify", authenticateToken, async (req, res) => {
       success: true,
       message: "Token is valid",
       data: {
-        user: userProfile,
+        user: user,
       },
     });
   } catch (error) {

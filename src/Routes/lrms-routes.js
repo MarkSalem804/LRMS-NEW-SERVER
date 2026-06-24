@@ -1,17 +1,20 @@
 const express = require("express");
 const lrmsRouter = express.Router();
+const path = require("path");
+const fs = require("fs");
 const {
   materialUpload,
+  excelUpload,
 } = require("../Middlewares/fileUpload");
 
-const lrmsService = require("../Services/lrms-service"); // Import the service function
+const lrmsService = require("../Services/lrms-service");
 const activityLogService = require("../ActivityLogs/activity-log-service");
-const { authenticateToken } = require("../Middlewares/authMiddleware"); // JWT authentication middleware
+const { authenticateToken } = require("../Middlewares/authMiddleware");
 
 lrmsRouter.post(
   "/upload-materials",
   authenticateToken,
-  materialUpload.single("excelFile"),
+  excelUpload.single("excelFile"),
   async (req, res) => {
     if (!req.file) {
       return res
@@ -19,11 +22,9 @@ lrmsRouter.post(
         .json({ success: false, message: "No file uploaded." });
     }
 
-    const filePath = req.file.path;
-
     try {
-      // First, parse the Excel file to get the materials data
-      const parseResult = await lrmsService.parseExcelFile(filePath);
+      // Parse the Excel file directly from memory buffer — no disk I/O
+      const parseResult = await lrmsService.parseExcelFile(req.file.buffer);
 
       if (!parseResult.success) {
         return res.status(500).json({
@@ -319,6 +320,54 @@ lrmsRouter.get("/getAllMaterials", async (req, res) => {
   }
 });
 
+// Paginated + filtered materials endpoint used by MaterialsManagement page
+lrmsRouter.get("/getMaterials", authenticateToken, async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      search = "",
+      type = "",
+      grade = "",
+      area = "",
+      component = "",
+      track = "",
+      strand = "",
+      subjectType = "",
+      savedOnly = "false",
+    } = req.query;
+
+    const userId = req.user?.userId || null;
+
+    const result = await lrmsService.fetchMaterialsPaginated({
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
+      search,
+      type,
+      grade,
+      area,
+      component,
+      track,
+      strand,
+      subjectType,
+      savedOnly: savedOnly === "true",
+      userId,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Materials fetched successfully",
+      ...result,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+
 // Add new route for viewing material files
 lrmsRouter.get("/view-material/:materialId", async (req, res) => {
   const materialId = parseInt(req.params.materialId, 10);
@@ -496,31 +545,45 @@ lrmsRouter.get("/get-material/:materialId", async (req, res) => {
 });
 
 // Add route to increment material views
-lrmsRouter.post("/increment-views/:materialId", async (req, res) => {
-  const materialId = parseInt(req.params.materialId, 10);
+lrmsRouter.post(
+  "/increment-views/:materialId",
+  authenticateToken,
+  async (req, res) => {
+    const materialId = parseInt(req.params.materialId, 10);
+    const userId = req.user.userId; // from authenticateToken
 
-  if (isNaN(materialId)) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid material ID provided.",
-    });
-  }
-
-  try {
-    const result = await lrmsService.incrementMaterialViews(materialId);
-    if (result.success) {
-      res.status(200).json(result);
-    } else {
-      res.status(500).json(result);
+    if (isNaN(materialId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid material ID provided.",
+      });
     }
-  } catch (error) {
-    console.error("Error in increment-views route:", error);
-    res.status(500).json({
-      success: false,
-      message: "An error occurred while incrementing material views.",
-    });
+
+    try {
+      const result = await lrmsService.incrementMaterialViews(materialId);
+      if (result.success) {
+        // Also get material details to log the title
+        const materialDetails = await lrmsService.getMaterialWithFile(materialId);
+        if (materialDetails.success) {
+          await activityLogService.logMaterialViewed(
+            userId,
+            materialDetails.material.title
+          );
+        }
+
+        res.status(200).json(result);
+      } else {
+        res.status(500).json(result);
+      }
+    } catch (error) {
+      console.error("Error in increment-views route:", error);
+      res.status(500).json({
+        success: false,
+        message: "An error occurred while incrementing material views.",
+      });
+    }
   }
-});
+);
 
 // Add route to download material files and track downloads
 lrmsRouter.get("/download-material/:materialId", async (req, res) => {
@@ -654,31 +717,93 @@ lrmsRouter.get("/download-material/:materialId", async (req, res) => {
 });
 
 // Add route to increment material downloads (separate endpoint for tracking)
-lrmsRouter.post("/increment-downloads/:materialId", async (req, res) => {
-  const materialId = parseInt(req.params.materialId, 10);
+lrmsRouter.post(
+  "/increment-downloads/:materialId",
+  authenticateToken,
+  async (req, res) => {
+    const materialId = parseInt(req.params.materialId, 10);
+    const userId = req.user.userId;
 
-  if (isNaN(materialId)) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid material ID provided.",
-    });
-  }
-
-  try {
-    const result = await lrmsService.incrementMaterialDownloads(materialId);
-    if (result.success) {
-      res.status(200).json(result);
-    } else {
-      res.status(500).json(result);
+    if (isNaN(materialId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid material ID provided.",
+      });
     }
-  } catch (error) {
-    console.error("Error in increment-downloads route:", error);
-    res.status(500).json({
-      success: false,
-      message: "An error occurred while incrementing material downloads.",
-    });
+
+    try {
+      const result = await lrmsService.incrementMaterialDownloads(materialId);
+      if (result.success) {
+        const materialDetails = await lrmsService.getMaterialWithFile(materialId);
+        if (materialDetails.success) {
+          await activityLogService.logMaterialDownloaded(
+            userId,
+            materialDetails.material.title
+          );
+        }
+
+        res.status(200).json(result);
+      } else {
+        res.status(500).json(result);
+      }
+    } catch (error) {
+      console.error("Error in increment-downloads route:", error);
+      res.status(500).json({
+        success: false,
+        message: "An error occurred while incrementing material downloads.",
+      });
+    }
   }
-});
+);
+
+// Add route to rate a material
+lrmsRouter.post(
+  "/rate-material/:materialId",
+  authenticateToken,
+  async (req, res) => {
+    const materialId = parseInt(req.params.materialId, 10);
+    const userId = req.user.userId;
+    const { rating, suggestions } = req.body;
+
+    if (isNaN(materialId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid material ID provided.",
+      });
+    }
+
+    try {
+      const result = await lrmsService.submitMaterialRating(
+        materialId,
+        userId,
+        rating,
+        suggestions
+      );
+
+      if (result.success) {
+        // Log the rating
+        const materialDetails = await lrmsService.getMaterialWithFile(materialId);
+        if (materialDetails.success) {
+          await activityLogService.logMaterialRated(
+            userId,
+            materialDetails.material.title,
+            rating
+          );
+        }
+
+        res.status(200).json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error("Error in rate-material route:", error);
+      res.status(500).json({
+        success: false,
+        message: "An error occurred while rating the material.",
+      });
+    }
+  }
+);
 
 // Add new route for getting all filter options
 lrmsRouter.get("/get-filter-options", async (req, res) => {
@@ -1729,6 +1854,77 @@ lrmsRouter.delete(
         success: false,
         message: "An error occurred while deleting the rating.",
       });
+    }
+  }
+);
+
+// Saved Materials Routes
+
+// Save a material
+lrmsRouter.post(
+  "/save-material/:materialId",
+  authenticateToken,
+  async (req, res) => {
+    const materialId = parseInt(req.params.materialId, 10);
+    const userId = req.user.userId;
+
+    if (isNaN(materialId)) {
+      return res.status(400).json({ success: false, message: "Invalid material ID" });
+    }
+
+    try {
+      const result = await lrmsService.saveMaterial(userId, materialId);
+      if (result.success) {
+        res.status(200).json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error("Error saving material:", error);
+      res.status(500).json({ success: false, message: "Server error saving material" });
+    }
+  }
+);
+
+// Unsave a material
+lrmsRouter.delete(
+  "/unsave-material/:materialId",
+  authenticateToken,
+  async (req, res) => {
+    const materialId = parseInt(req.params.materialId, 10);
+    const userId = req.user.userId;
+
+    if (isNaN(materialId)) {
+      return res.status(400).json({ success: false, message: "Invalid material ID" });
+    }
+
+    try {
+      const result = await lrmsService.unsaveMaterial(userId, materialId);
+      if (result.success) {
+        res.status(200).json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error("Error unsaving material:", error);
+      res.status(500).json({ success: false, message: "Server error unsaving material" });
+    }
+  }
+);
+
+// Get saved materials
+lrmsRouter.get(
+  "/saved-materials",
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.userId;
+
+    try {
+      const result = await lrmsService.getSavedMaterials(userId);
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("Error fetching saved materials:", error);
+      res.status(500).json({ success: false, message: "Server error fetching saved materials" });
     }
   }
 );

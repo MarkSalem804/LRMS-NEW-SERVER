@@ -265,8 +265,40 @@ async function userProfile(id) {
     const profile = await userDAO.getProfileByUserId(id);
     return profile;
   } catch (error) {
-    console.error("[resetPassword] Error:", error);
+    console.error("[userProfile] Error:", error);
     throw new Error("Error getting user profile" + error.message);
+  }
+}
+
+async function getUserById(id) {
+  try {
+    const user = await userDAO.findUserById(id);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const profile =
+      user.profile && user.profile.length > 0 ? user.profile[0] : null;
+    const positionName = profile?.position?.name || null;
+    const officeName = profile?.office?.name || null;
+    const schoolName = profile?.school?.name || null;
+
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      isActive: user.isActive,
+      isChanged: user.isChanged,
+      twoFactorEnabled: user.twoFactorEnabled,
+      profile: user.profile,
+      positionName: positionName,
+      officeName: officeName,
+      schoolName: schoolName,
+    };
+  } catch (error) {
+    throw new Error(error.message);
   }
 }
 
@@ -430,6 +462,7 @@ async function getTwoFactorStatus(userId) {
 
 module.exports = {
   userProfile,
+  getUserById,
   getAllUsers,
   register,
   login,

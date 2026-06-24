@@ -16,13 +16,14 @@ const ACTIVITY_TYPES = {
   TWO_FACTOR_ENABLED: "Two-factor authentication enabled",
   TWO_FACTOR_DISABLED: "Two-factor authentication disabled",
 
-  // Materials Management
-  MATERIAL_UPLOADED: "Material metadata uploaded",
-  MATERIAL_FILE_UPLOADED: "Material file uploaded",
-  MATERIAL_VIEWED: "Material viewed",
-  MATERIAL_DOWNLOADED: "Material downloaded",
-  MATERIAL_UPDATED: "Material updated",
-  MATERIAL_DELETED: "Material deleted",
+  // Material Activities
+  MATERIAL_UPLOADED: "Material Uploaded",
+  MATERIAL_FILE_UPLOADED: "Material File Uploaded",
+  MATERIAL_VIEWED: "Material Viewed",
+  MATERIAL_DOWNLOADED: "Material Downloaded",
+  MATERIAL_UPDATED: "Material Updated",
+  MATERIAL_DELETED: "Material Deleted",
+  MATERIAL_RATED: "Material Rated",
 
   // Profile
   PROFILE_VIEWED: "Profile viewed",
@@ -136,6 +137,14 @@ async function logMaterialDownloaded(userId, materialTitle) {
   );
 }
 
+async function logMaterialRated(userId, materialTitle, rating) {
+  return logActivity(
+    userId,
+    ACTIVITY_TYPES.MATERIAL_RATED,
+    `Material: ${materialTitle} (${rating} stars)`
+  );
+}
+
 async function logMaterialUpdated(userId, materialTitle) {
   return logActivity(
     userId,
@@ -190,6 +199,7 @@ module.exports = {
   logMaterialFileUploaded,
   logMaterialViewed,
   logMaterialDownloaded,
+  logMaterialRated,
   logMaterialUpdated,
   logMaterialDeleted,
   logProfileViewed,

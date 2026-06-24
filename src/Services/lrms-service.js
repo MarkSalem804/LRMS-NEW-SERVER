@@ -1,6 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
-const xlsx = require("xlsx");
+const ExcelJS = require("exceljs");
 const path = require("path");
 const fs = require("fs");
 const lrmsData = require("../Database/lrms-data");
@@ -36,7 +36,7 @@ const checkDuplicateMaterials = async (materialsData) => {
       if (existingDuplicate) {
         duplicates.push({
           title: newMaterial.title,
-          gradeLevel: existingDuplicate.gradeLevel.name,
+          gradeLevel: existingDuplicate.gradeLevel?.name || "N/A",
           existingId: existingDuplicate.id,
         });
       } else {
@@ -85,15 +85,45 @@ const insertMaterials = async (materialsData) => {
   }
 };
 
-const parseExcelFile = async (filePath) => {
+const parseExcelFile = async (buffer) => {
   try {
-    const workbook = xlsx.readFile(filePath);
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
 
-    const data = xlsx.utils.sheet_to_json(worksheet);
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
+      return { success: false, message: "No worksheet found in the Excel file." };
+    }
 
-    // console.log("Parsed Excel data:", data);
+    // Build a header map from row 1 (column index → header name)
+    const headers = {};
+    worksheet.getRow(1).eachCell((cell, colNumber) => {
+      headers[colNumber] = cell.value ? String(cell.value).trim() : null;
+    });
+
+    // Parse data rows (starting from row 2)
+    const data = [];
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const rowObj = {};
+      row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        const header = headers[colNumber];
+        if (header) {
+          let value = cell.value;
+          if (value && typeof value === "object" && value.richText) {
+            value = value.richText.map((r) => r.text).join("");
+          } else if (value && typeof value === "object" && value.formula) {
+            value = value.result;
+          }
+          rowObj[header] = value;
+        }
+      });
+      if (rowObj["Title"]) data.push(rowObj);
+    });
+
+    if (data.length === 0) {
+      return { success: false, message: "No valid material data found in the file." };
+    }
 
     // Fetch existing related data and create lookup maps
     const [
@@ -114,165 +144,77 @@ const parseExcelFile = async (filePath) => {
       prisma.type.findMany(),
     ]);
 
-    const gradeLevelMap = gradeLevels.reduce((map, level) => {
-      if (level.name) map[level.name] = level.id;
-      return map;
-    }, {});
-    const learningAreaMap = learningAreas.reduce((map, area) => {
-      if (area.name) map[area.name] = area.id;
-      return map;
-    }, {});
-    const trackMap = tracks.reduce((map, track) => {
-      if (track.name) map[track.name] = track.id;
-      return map;
-    }, {});
-    const componentMap = components.reduce((map, component) => {
-      if (component.name) map[component.name] = component.id;
-      return map;
-    }, {});
-    const strandMap = strands.reduce((map, strand) => {
-      if (strand.name) map[strand.name] = strand.id;
-      return map;
-    }, {});
-    const typeMap = types.reduce((map, type) => {
-      if (type.name) map[type.name] = type.id;
-      return map;
-    }, {});
-    const subjectTypeMap = subjectTypes.reduce((map, type) => {
-      map[type.name] = type.id;
-      return map;
-    }, {});
+    // Build case-insensitive lookup maps (key = lowercased+trimmed name → id)
+    const buildMap = (arr) =>
+      arr.reduce((map, item) => {
+        if (item.name) map[item.name.toLowerCase().trim()] = item.id;
+        return map;
+      }, {});
 
-    const materialsDataForSave = data.map((row) => {
-      // Accessing data using bracket notation to handle headers with spaces
-      // Assuming Excel column headers match these names (case-sensitive)
-      const title = row["Title"];
-      const description = row["Description"];
-      const downloads = row["Downloads"];
-      const rating = row["Rating"];
-      const uploadedAt = row["Uploaded At"]; // Assuming 'Uploaded At' header
-      const intendedUsers = row["Intended Users"]; // Using 'Intended Users' as requested
-      const topic = row["Topic"];
-      const competencies = row["Competencies"];
-      const language = row["Language"];
-      const objective = row["Objective"];
-      const educationType = row["Education Type"]; // Assuming 'Education Type' header
+    const gradeLevelMap  = buildMap(gradeLevels);
+    const learningAreaMap = buildMap(learningAreas);
+    const trackMap       = buildMap(tracks);
+    const componentMap   = buildMap(components);
+    const strandMap      = buildMap(strands);
+    const typeMap        = buildMap(types);
+    const subjectTypeMap = buildMap(subjectTypes);
 
-      const gradeLevelName = row["Grade Level"];
-      const learningAreaName = row["Learning Area"];
-      const trackName = row["Track"];
-      const componentName = row["Component"];
-      const strandName = row["Strand"];
-      const typeName = row["Type"];
-      const subjectTypeName = row["Subject Type"];
+    // Normalize a cell value for lookup: trim + lowercase
+    const norm = (v) => (v ? String(v).toLowerCase().trim() : null);
 
-      return {
-        title: title,
-        description: description,
-        downloads: downloads ? parseInt(downloads) : undefined,
-        rating: rating ? parseFloat(rating) : undefined,
-        uploadedAt: uploadedAt ? new Date(uploadedAt) : new Date(), // Use 'Uploaded At' or current date
-        intendedUsers: intendedUsers,
-        topic: topic,
-        competencies: competencies,
-        language: language,
-        objective: objective,
-        educationType: educationType,
-
-        // Map names to IDs using lookup maps. Use null if name is not found.
-        gradeLevelId: gradeLevelName ? gradeLevelMap[gradeLevelName] : null,
-        learningAreaId: learningAreaName
-          ? learningAreaMap[learningAreaName]
-          : null,
-        trackId: trackName ? trackMap[trackName] : null,
-        componentId: componentName ? componentMap[componentName] : null,
-        subjectTypeId: subjectTypeName ? subjectTypeMap[subjectTypeName] : null,
-        strandId: strandName ? strandMap[strandName] : null,
-        typeId: typeName ? typeMap[typeName] : null,
-      };
+    const mapRow = (row) => ({
+      title:         row["Title"],
+      description:   row["Description"],
+      downloads:     row["Downloads"] ? parseInt(row["Downloads"]) : undefined,
+      rating:        row["Rating"]    ? parseFloat(row["Rating"])  : undefined,
+      uploadedAt:    row["Uploaded At"] ? new Date(row["Uploaded At"]) : new Date(),
+      intendedUsers: row["Intended Users"],
+      topic:         row["Topic"],
+      competencies:  row["Competencies"],
+      language:      row["Language"],
+      objective:     row["Objective"],
+      educationType: row["Education Type"],
     });
 
-    const materialsDataForResponse = data.map((row) => {
-      // Accessing data using bracket notation to handle headers with spaces
-      // Assuming Excel column headers match these names (case-sensitive)
-      const title = row["Title"];
-      const description = row["Description"];
-      const downloads = row["Downloads"];
-      const rating = row["Rating"];
-      const uploadedAt = row["Uploaded At"]; // Assuming 'Uploaded At' header
-      const intendedUsers = row["Intended Users"]; // Using 'Intended Users' as requested
-      const topic = row["Topic"];
-      const competencies = row["Competencies"];
-      const language = row["Language"];
-      const objective = row["Objective"];
-      const educationType = row["Education Type"]; // Assuming 'Education Type' header
+    const materialsDataForSave = data.map((row) => ({
+      ...mapRow(row),
+      gradeLevelId:   norm(row["Grade Level"])  ? gradeLevelMap[norm(row["Grade Level"])]   ?? null : null,
+      learningAreaId: norm(row["Learning Area"]) ? learningAreaMap[norm(row["Learning Area"])] ?? null : null,
+      trackId:        norm(row["Track"])         ? trackMap[norm(row["Track"])]              ?? null : null,
+      componentId:    norm(row["Component"])     ? componentMap[norm(row["Component"])]      ?? null : null,
+      subjectTypeId:  norm(row["Subject Type"])  ? subjectTypeMap[norm(row["Subject Type"])] ?? null : null,
+      strandId:       norm(row["Strand"])        ? strandMap[norm(row["Strand"])]            ?? null : null,
+      typeId:         norm(row["Type"])          ? typeMap[norm(row["Type"])]                ?? null : null,
 
-      const gradeLevelName = row["Grade Level"];
-      const learningAreaName = row["Learning Area"];
-      const trackName = row["Track"];
-      const componentName = row["Component"];
-      const strandName = row["Strand"];
-      const typeName = row["Type"];
-      const subjectTypeName = row["Subject Type"];
+    }));
 
-      return {
-        title: title,
-        description: description,
-        downloads: downloads ? parseInt(downloads) : undefined,
-        rating: rating ? parseFloat(rating) : undefined,
-        uploadedAt: uploadedAt ? new Date(uploadedAt) : new Date(), // Use 'Uploaded At' or current date
-        intendedUsers: intendedUsers,
-        topic: topic,
-        competencies: competencies,
-        language: language,
-        objective: objective,
-        educationType: educationType,
+    const materialsDataForResponse = data.map((row) => ({
+      ...mapRow(row),
+      gradeLevelName:  row["Grade Level"]  || null,
+      learningAreaName: row["Learning Area"] || null,
+      trackName:       row["Track"]        || null,
+      componentName:   row["Component"]    || null,
+      subjectTypeName: row["Subject Type"] || null,
+      strandName:      row["Strand"]       || null,
+      typeName:        row["Type"]         || null,
+    }));
 
-        // Include names in the response data
-        gradeLevelName: gradeLevelName || null,
-        learningAreaName: learningAreaName || null,
-        trackName: trackName || null,
-        componentName: componentName || null,
-        subjectTypeName: subjectTypeName || null,
-        strandName: strandName || null,
-        typeName: typeName || null,
-      };
-    });
+    const validForSave     = materialsDataForSave.filter((m) => m.title);
+    const validForResponse = materialsDataForResponse.filter((m) => m.title);
 
-    // Filter out any materials that might not have a title or other required fields if necessary
-    const validMaterialsForSave = materialsDataForSave.filter(
-      (material) => material.title
-    );
-    const validMaterialsForResponse = materialsDataForResponse.filter(
-      (material) => material.title
-    );
-
-    if (validMaterialsForSave.length > 0) {
+    if (validForSave.length > 0) {
       return {
         success: true,
         message: "File parsed successfully",
-        data: validMaterialsForSave,
-        responseData: validMaterialsForResponse,
+        data: validForSave,
+        responseData: validForResponse,
       };
     } else {
-      return {
-        success: false,
-        message: "No valid material data found in the file.",
-      };
+      return { success: false, message: "No valid material data found in the file." };
     }
   } catch (error) {
     console.error("Error parsing Excel file:", error);
-    return {
-      success: false,
-      message: "Error processing file",
-      error: error.message,
-    };
-  } finally {
-    // Clean up the uploaded file
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      // console.log(`Deleted temporary file: ${filePath}`);
-    }
+    return { success: false, message: "Error processing file", error: error.message };
   }
 };
 
@@ -472,6 +414,59 @@ async function fetchAllMaterials() {
     throw new Error("Failed to fetch materials");
   }
 }
+
+// Helper to map a raw Prisma material row to the flat shape used by the frontend
+function mapMaterial(material) {
+  return {
+    id: material.id,
+    title: material.title,
+    description: material.description,
+    uploadedAt: material.uploadedAt,
+    downloads: material.downloads || 0,
+    views: material.views || 0,
+    rating: material.rating,
+    intendedUsers: material.intendedUsers,
+    topic: material.topic,
+    competencies: material.competencies,
+    language: material.language,
+    objective: material.objective,
+    educationType: material.educationType,
+    materialPath: material.materialPath,
+    fileName: material.fileName,
+    typeId: material.typeId,
+    gradeLevelId: material.gradeLevelId,
+    learningAreaId: material.learningAreaId,
+    trackId: material.trackId,
+    componentId: material.componentId,
+    strandId: material.strandId,
+    subjectTypeId: material.subjectTypeId,
+    gradeLevelName: material.gradeLevel ? material.gradeLevel.name : null,
+    learningAreaName: material.learningArea ? material.learningArea.name : null,
+    trackName: material.track ? material.track.name : null,
+    componentName: material.component ? material.component.name : null,
+    strandName: material.strand ? material.strand.name : null,
+    typeName: material.type ? material.type.name : null,
+    subjectTypeName: material.subjectType ? material.subjectType.name : null,
+  };
+}
+
+async function fetchMaterialsPaginated(params) {
+  try {
+    const { total, data } = await lrmsData.getMaterialsPaginated(params);
+    return {
+      total,
+      page: params.page || 1,
+      limit: params.limit || 10,
+      totalPages: Math.ceil(total / (params.limit || 10)),
+      data: data.map(mapMaterial),
+      savedOnly: params.savedOnly || false,
+    };
+  } catch (error) {
+    console.error("Error fetching paginated materials:", error);
+    throw new Error("Failed to fetch materials");
+  }
+}
+
 
 async function getMaterialWithFile(materialId) {
   try {
@@ -854,41 +849,27 @@ async function incrementMaterialViews(materialId) {
 // Function to increment download count for a material
 async function incrementMaterialDownloads(materialId) {
   try {
-    // First, get the current material to check if downloads is null
     const currentMaterial = await prisma.materials.findUnique({
       where: { id: materialId },
       select: { downloads: true },
     });
 
     if (!currentMaterial) {
-      return {
-        success: false,
-        message: "Material not found",
-      };
+      return { success: false, message: "Material not found" };
     }
 
-    // If downloads is null or undefined, set it to 1, otherwise increment
     const currentDownloads = currentMaterial.downloads ?? 0;
     const newDownloads = currentDownloads + 1;
 
     const material = await prisma.materials.update({
       where: { id: materialId },
-      data: {
-        downloads: newDownloads,
-      },
+      data: { downloads: newDownloads },
     });
 
-    return {
-      success: true,
-      downloads: material.downloads || 0,
-    };
+    return { success: true, downloads: material.downloads || 0 };
   } catch (error) {
     console.error("Error incrementing material downloads:", error);
-    return {
-      success: false,
-      message: "Failed to increment material downloads",
-      error: error.message,
-    };
+    return { success: false, message: "Failed to increment material downloads", error: error.message };
   }
 }
 
@@ -1135,6 +1116,7 @@ module.exports = {
   createSubjectType,
   updateMaterialWithFile,
   fetchAllMaterials,
+  fetchMaterialsPaginated,
   getMaterialWithFile,
   getFilterOptions,
   addLearningArea,
@@ -1191,6 +1173,56 @@ module.exports = {
   getAllTracks,
   // Types CRUD
   getAllTypes,
+
+  // Saved Materials
+  saveMaterial: async (userId, materialId) => {
+    try {
+      const saved = await prisma.savedMaterials.create({
+        data: {
+          userId: parseInt(userId),
+          materialId: parseInt(materialId),
+        },
+      });
+      return { success: true, saved };
+    } catch (error) {
+      if (error.code === 'P2002') {
+        return { success: false, message: "Material already saved" };
+      }
+      throw error;
+    }
+  },
+
+  unsaveMaterial: async (userId, materialId) => {
+    try {
+      await prisma.savedMaterials.delete({
+        where: {
+          userId_materialId: {
+            userId: parseInt(userId),
+            materialId: parseInt(materialId),
+          },
+        },
+      });
+      return { success: true };
+    } catch (error) {
+      if (error.code === 'P2025') {
+        return { success: false, message: "Saved material not found" };
+      }
+      throw error;
+    }
+  },
+
+  getSavedMaterials: async (userId) => {
+    try {
+      const saved = await prisma.savedMaterials.findMany({
+        where: { userId: parseInt(userId) },
+        select: { materialId: true },
+      });
+      return { success: true, materialIds: saved.map(s => s.materialId) };
+    } catch (error) {
+      throw error;
+    }
+  },
+
   incrementMaterialViews,
   incrementMaterialDownloads,
   submitMaterialRating,

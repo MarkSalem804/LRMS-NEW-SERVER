@@ -126,7 +126,7 @@ activityLogRouter.post("/export", async (req, res) => {
     }
 
     // Generate Excel file
-    const result = activityLogExport.exportActivityLogsToExcel(logs, filename);
+    const result = await activityLogExport.exportActivityLogsToExcel(logs, filename);
 
     if (result.success) {
       return res.status(200).json({
@@ -214,7 +214,7 @@ activityLogRouter.post("/export-summary", async (req, res) => {
     };
 
     // Generate Excel file with summary
-    const result = activityLogExport.exportActivityLogsWithSummary(
+    const result = await activityLogExport.exportActivityLogsWithSummary(
       logs,
       stats,
       filename

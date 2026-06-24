@@ -36,7 +36,7 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// PDF-only filter for materials
+// PDF-only filter for material files (the actual content)
 const pdfFilter = (req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase();
   const mimetype = file.mimetype;
@@ -45,6 +45,28 @@ const pdfFilter = (req, file, cb) => {
     cb(null, true);
   } else {
     cb(new Error("Invalid file type. Only PDF files are allowed for materials."), false);
+  }
+};
+
+// Excel-only filter for metadata uploads (.xlsx / .xls)
+const excelFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const ALLOWED_EXCEL_MIMES = [
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/octet-stream", // some browsers send this for .xls
+  ];
+
+  if ((".xlsx" === ext || ".xls" === ext) && ALLOWED_EXCEL_MIMES.includes(file.mimetype)) {
+    cb(null, true);
+  } else if (".xlsx" === ext || ".xls" === ext) {
+    // Accept by extension even if MIME is unexpected (browser inconsistency)
+    cb(null, true);
+  } else {
+    cb(
+      new Error("Invalid file type. Only Excel files (.xlsx, .xls) are allowed for metadata upload."),
+      false
+    );
   }
 };
 
@@ -63,10 +85,19 @@ const storage = (subDir) =>
   });
 
 // Exported middlewares
+
+// For actual material PDF files
 const materialUpload = multer({
   storage: storage("materials"),
   fileFilter: pdfFilter,
   limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+});
+
+// For metadata Excel files — parsed in memory, never saved to disk
+const excelUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: excelFilter,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });
 
 const profileUpload = multer({
@@ -77,5 +108,6 @@ const profileUpload = multer({
 
 module.exports = {
   materialUpload,
+  excelUpload,
   profileUpload,
 };
