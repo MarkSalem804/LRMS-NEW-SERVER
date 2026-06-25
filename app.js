@@ -4,7 +4,7 @@ dotenv.config();
 
 const { PrismaClient } = require("@prisma/client");
 const fs = require("fs");
-const https = require("https");
+// const https = require("https");
 const http = require("http");
 const cookieParser = require("cookie-parser");
 const Routes = require("./src/Middlewares/routes-conf");
@@ -13,11 +13,13 @@ const cors = require("cors");
 const { initSocket } = require("./src/Middlewares/socketio");
 
 const app = express();
+app.set("trust proxy", 1);
 const corsOptions = require("./src/Middlewares/CORS-conf/cors-options");
 const credentials = require("./src/Middlewares/CORS-conf/credentials");
 const prisma = new PrismaClient();
 // const port = process.env.PORT || 5001;
-const port = process.env.PORT || 5005;
+const port = process.env.PORT || 5201;
+// const port = process.env.PORT || 5005;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -85,10 +87,16 @@ const server = http.createServer(app);
 // Initialize Socket.io
 initSocket(server);
 
-server.listen(port, () => {
-  clear(); // Clear the terminal when the server starts
-  console.log(`🚀 Server running on port ${port}`);
-  console.log(`🔌 Socket.io initialized and ready`);
+//server.listen(port, () => {
+//  clear(); // Clear the terminal when the server starts
+//  console.log(`🚀 Server running on port ${port}`);
+//  console.log(`🔌 Socket.io initialized and ready`);
+//});
+server.listen(port, "127.0.0.1", () => {
+  clear();
+
+  console.log(`Server running on port ${port}`);
+  console.log(`Environment: ${process.env.NODE_ENV}`);
 });
 
 module.exports = { prisma };
