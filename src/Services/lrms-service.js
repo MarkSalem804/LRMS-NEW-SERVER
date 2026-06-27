@@ -162,6 +162,23 @@ const parseExcelFile = async (buffer) => {
     // Normalize a cell value for lookup: trim + lowercase
     const norm = (v) => (v ? String(v).toLowerCase().trim() : null);
 
+    const findMatch = (map, val) => {
+      const normVal = norm(val);
+      if (!normVal) return null;
+      if (map[normVal] !== undefined) return map[normVal];
+      
+      // Plural/singular checks
+      if (normVal.endsWith('s') && map[normVal.slice(0, -1)] !== undefined) return map[normVal.slice(0, -1)];
+      if (map[normVal + 's'] !== undefined) return map[normVal + 's'];
+      
+      // Partial match
+      for (const key in map) {
+        if (key.includes(normVal) || normVal.includes(key)) return map[key];
+      }
+      
+      return null;
+    };
+
     const mapRow = (row) => ({
       title:         row["Title"],
       description:   row["Description"],
@@ -178,14 +195,13 @@ const parseExcelFile = async (buffer) => {
 
     const materialsDataForSave = data.map((row) => ({
       ...mapRow(row),
-      gradeLevelId:   norm(row["Grade Level"])  ? gradeLevelMap[norm(row["Grade Level"])]   ?? null : null,
-      learningAreaId: norm(row["Learning Area"]) ? learningAreaMap[norm(row["Learning Area"])] ?? null : null,
-      trackId:        norm(row["Track"])         ? trackMap[norm(row["Track"])]              ?? null : null,
-      componentId:    norm(row["Component"])     ? componentMap[norm(row["Component"])]      ?? null : null,
-      subjectTypeId:  norm(row["Subject Type"])  ? subjectTypeMap[norm(row["Subject Type"])] ?? null : null,
-      strandId:       norm(row["Strand"])        ? strandMap[norm(row["Strand"])]            ?? null : null,
-      typeId:         norm(row["Type"])          ? typeMap[norm(row["Type"])]                ?? null : null,
-
+      gradeLevelId:   findMatch(gradeLevelMap, row["Grade Level"]),
+      learningAreaId: findMatch(learningAreaMap, row["Learning Area"]),
+      trackId:        findMatch(trackMap, row["Track"]),
+      componentId:    findMatch(componentMap, row["Component"]),
+      subjectTypeId:  findMatch(subjectTypeMap, row["Subject Type"]),
+      strandId:       findMatch(strandMap, row["Strand"]),
+      typeId:         findMatch(typeMap, row["Type"] || row["Resource Type"] || row["Material Type"]),
     }));
 
     const materialsDataForResponse = data.map((row) => ({
@@ -196,7 +212,7 @@ const parseExcelFile = async (buffer) => {
       componentName:   row["Component"]    || null,
       subjectTypeName: row["Subject Type"] || null,
       strandName:      row["Strand"]       || null,
-      typeName:        row["Type"]         || null,
+      typeName:        row["Type"] || row["Resource Type"] || row["Material Type"] || null,
     }));
 
     const validForSave     = materialsDataForSave.filter((m) => m.title);
