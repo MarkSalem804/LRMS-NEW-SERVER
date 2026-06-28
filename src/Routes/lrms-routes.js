@@ -477,6 +477,7 @@ lrmsRouter.get("/view-material/:materialId", async (req, res) => {
       "http://localhost:5175",
       "https://ilearn-beta.depedimuscity.com",
       "https://sdoic-ilearn.depedimuscity.com",
+      "https://ilearn-test.depedimuscity.com",
       "https://sdoic-ilearn.depedimuscity.com:5005",
     ];
 
