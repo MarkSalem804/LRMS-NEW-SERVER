@@ -251,3 +251,30 @@ model savedMaterials {
 
   @@unique([userId, materialId])
 }
+
+model libraryMaterials {
+  id                  Int            @id @default(autoincrement())
+  title               String?        @db.Text
+  author              String?        @db.Text
+  illustrator         String?        @db.Text
+  copyrightYear       DateTime?
+  imprint             String?        @db.Text
+  physicalDescription String?        @db.Text
+  callNumber          String?        @db.Text
+  notes               String?        @db.Text
+  genreId             Int?
+  issn                String?        @db.Text
+  isbn                String?        @db.Text
+  coverPath           String?
+  genre               libraryGenres? @relation(fields: [genreId], references: [id])
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+}
+
+model libraryGenres {
+  id               Int                @id @default(autoincrement())
+  name             String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  libraryMaterials libraryMaterials[]
+}

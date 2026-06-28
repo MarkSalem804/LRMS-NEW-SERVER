@@ -1510,6 +1510,111 @@ lrmsRouter.delete(
   }
 );
 
+// --- Library Materials Metadata Upload ---
+lrmsRouter.post(
+  "/upload-library-materials",
+  authenticateToken,
+  excelUpload.single("excelFile"),
+  async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No file uploaded." });
+    }
+    try {
+      const parseResult = await lrmsService.parseLibraryExcelFile(req.file.buffer);
+      if (!parseResult.success) {
+        return res.status(500).json({ success: false, message: parseResult.message, error: parseResult.error });
+      }
+
+      const duplicateCheckResult = await lrmsService.checkDuplicateLibraryMaterials(parseResult.data);
+      if (!duplicateCheckResult.success) {
+        return res.status(500).json({ success: false, message: "Error checking for duplicates" });
+      }
+
+      if (duplicateCheckResult.nonDuplicates.length === 0) {
+        return res.status(200).json({
+          success: true,
+          message: "No new materials to upload. All materials were duplicates.",
+          duplicates: duplicateCheckResult.duplicates,
+          totalDuplicates: duplicateCheckResult.totalDuplicates,
+          totalUploaded: 0,
+        });
+      }
+
+      const result = await lrmsService.insertLibraryMaterials(duplicateCheckResult.nonDuplicates);
+      if (result.success) {
+        return res.status(200).json({
+          success: true,
+          message: result.message,
+          count: result.count,
+          duplicates: duplicateCheckResult.duplicates,
+          totalDuplicates: duplicateCheckResult.totalDuplicates,
+          totalUploaded: duplicateCheckResult.totalNonDuplicates,
+        });
+      } else {
+        return res.status(500).json({ success: false, message: result.message, error: result.error });
+      }
+    } catch (error) {
+      console.error("Error in upload-library-materials route:", error);
+      return res.status(500).json({ success: false, message: "An error occurred during file processing." });
+    }
+  }
+);
+
+// --- Library Genres CRUD Routes ---
+lrmsRouter.get("/public/library-genres", async (req, res) => {
+  try {
+    const result = await lrmsService.getAllLibraryGenres();
+    if (result.success) {
+      return res.status(200).json(result);
+    } else {
+      return res.status(500).json(result);
+    }
+  } catch (error) {
+    console.error("Error in public/library-genres route:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+});
+
+lrmsRouter.get("/library-genres", authenticateToken, async (req, res) => {
+  try {
+    const result = await lrmsService.getAllLibraryGenres();
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+lrmsRouter.post("/library-genres", authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.body;
+    const result = await lrmsService.addLibraryGenre({ name });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+lrmsRouter.put("/library-genres/:id", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+    const result = await lrmsService.updateLibraryGenre(parseInt(id), { name });
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+lrmsRouter.delete("/library-genres/:id", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await lrmsService.deleteLibraryGenre(parseInt(id));
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+});
+
 // Components CRUD Routes
 lrmsRouter.get("/components", authenticateToken, async (req, res) => {
   try {

@@ -1239,6 +1239,183 @@ module.exports = {
     }
   },
 
+  // --- Library Materials Metadata Upload ---
+  parseLibraryExcelFile: async (buffer) => {
+    const ExcelJS = require('exceljs');
+    try {
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(buffer);
+      const worksheet = workbook.worksheets[0];
+      if (!worksheet) {
+        return { success: false, message: 'No worksheet found in the Excel file.' };
+      }
+
+      // Build header map
+      const headers = {};
+      worksheet.getRow(1).eachCell((cell, colNumber) => {
+        headers[colNumber] = cell.value ? String(cell.value).trim() : null;
+      });
+
+      // Parse rows
+      const data = [];
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        const rowObj = {};
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          const header = headers[colNumber];
+          if (header) {
+            let value = cell.value;
+            if (value && typeof value === 'object' && value.richText) {
+              value = value.richText.map(r => r.text).join('');
+            } else if (value && typeof value === 'object' && value.formula) {
+              value = value.result;
+            }
+            rowObj[header] = value;
+          }
+        });
+        if (rowObj['Title']) data.push(rowObj);
+      });
+
+      if (data.length === 0) {
+        return { success: false, message: 'No valid library material data found in the file.' };
+      }
+
+      // Fetch genres for lookup
+      const genres = await prisma.libraryGenres.findMany();
+      const genreMap = genres.reduce((map, g) => {
+        if (g.name) map[g.name.toLowerCase().trim()] = g.id;
+        return map;
+      }, {});
+
+      const norm = v => (v ? String(v).toLowerCase().trim() : null);
+      const findGenre = val => {
+        const n = norm(val);
+        if (!n) return null;
+        if (genreMap[n] !== undefined) return genreMap[n];
+        for (const key in genreMap) {
+          if (key.includes(n) || n.includes(key)) return genreMap[key];
+        }
+        return null;
+      };
+
+      const mapRow = row => ({
+        title:               row['Title'] || null,
+        author:              row['Author'] || null,
+        illustrator:         row['Illustrator'] || null,
+        copyrightYear:       row['Copyright Year'] ? new Date(String(row['Copyright Year']).trim()) : null,
+        imprint:             row['Imprint'] || null,
+        physicalDescription: row['Physical Description'] || null,
+        callNumber:          row['Call Number'] || null,
+        notes:               row['Notes'] || null,
+        issn:                row['ISSN'] || null,
+        isbn:                row['ISBN'] || null,
+        genreId:             findGenre(row['Genre']),
+      });
+
+      const valid = data.map(mapRow).filter(m => m.title);
+      if (valid.length === 0) {
+        return { success: false, message: 'No valid library material data found in the file.' };
+      }
+
+      return { success: true, message: 'File parsed successfully', data: valid };
+    } catch (error) {
+      console.error('Error parsing library Excel file:', error);
+      return { success: false, message: 'Error processing file', error: error.message };
+    }
+  },
+
+  checkDuplicateLibraryMaterials: async (materialsData) => {
+    try {
+      const existing = await prisma.libraryMaterials.findMany({
+        select: { title: true, callNumber: true }
+      });
+      const duplicates = [];
+      const nonDuplicates = [];
+      for (const m of materialsData) {
+        const isDupe = existing.some(
+          e =>
+            e.title?.toLowerCase() === m.title?.toLowerCase() &&
+            (e.callNumber ? e.callNumber === m.callNumber : true)
+        );
+        if (isDupe) duplicates.push({ title: m.title });
+        else nonDuplicates.push(m);
+      }
+      return {
+        success: true,
+        duplicates,
+        nonDuplicates,
+        totalDuplicates: duplicates.length,
+        totalNonDuplicates: nonDuplicates.length,
+        message: duplicates.length > 0 ? `${duplicates.length} duplicate(s) found` : 'No duplicates',
+      };
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  insertLibraryMaterials: async (materialsData) => {
+    try {
+      const result = await prisma.libraryMaterials.createMany({
+        data: materialsData,
+        skipDuplicates: true,
+      });
+      return { success: true, message: 'Library materials saved successfully', count: result.count };
+    } catch (error) {
+      console.error('Error saving library materials:', error);
+      return { success: false, message: 'Error saving library materials', error: error.message };
+    }
+  },
+
+  // --- Library Genres CRUD ---
+  getAllLibraryGenres: async () => {
+    try {
+      const genres = await prisma.libraryGenres.findMany({
+        orderBy: { name: 'asc' }
+      });
+      return { success: true, data: genres };
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  addLibraryGenre: async (data) => {
+    try {
+      const genre = await prisma.libraryGenres.create({
+        data: {
+          name: data.name
+        }
+      });
+      return { success: true, data: genre, message: "Library genre created successfully" };
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  updateLibraryGenre: async (id, data) => {
+    try {
+      const genre = await prisma.libraryGenres.update({
+        where: { id: parseInt(id) },
+        data: {
+          name: data.name
+        }
+      });
+      return { success: true, data: genre, message: "Library genre updated successfully" };
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  deleteLibraryGenre: async (id) => {
+    try {
+      await prisma.libraryGenres.delete({
+        where: { id: parseInt(id) }
+      });
+      return { success: true, message: "Library genre deleted successfully" };
+    } catch (error) {
+      throw error;
+    }
+  },
+
   incrementMaterialViews,
   incrementMaterialDownloads,
   submitMaterialRating,
