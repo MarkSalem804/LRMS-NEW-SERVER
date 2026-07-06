@@ -28,10 +28,14 @@ app.use(cookieParser());
 // Global path resolution for storage
 const path = require("path");
 const UPLOAD_ROOT = process.env.UPLOAD_ROOT || "uploads";
+const PROFILE_ROOT = process.env.PROFILE_ROOT || path.join(UPLOAD_ROOT, "profiles");
 const absoluteUploadPath = path.resolve(UPLOAD_ROOT);
+const absoluteProfilePath = path.resolve(PROFILE_ROOT);
 
 // Serve static files from configured storage directory
 app.use("/uploads", express.static(absoluteUploadPath));
+// Add static route for absolute profile paths in case they are used
+app.use("/profiles", express.static(absoluteProfilePath));
 
 // Middleware
 app.use(credentials);

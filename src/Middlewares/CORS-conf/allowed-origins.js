@@ -4,6 +4,7 @@ const allowedOrigins = [
   "https://sdoic-ilearn.depedimuscity.com",
   "https://sdoic-ilearn.depedimuscity.com:5005",
   "https://ilearn-test.depedimuscity.com:5201",
+  "https://ilearn-test.depedimuscity.com",
 ];
 
 module.exports = allowedOrigins;

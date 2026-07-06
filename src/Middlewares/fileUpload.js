@@ -3,9 +3,8 @@ const path = require("path");
 const fs = require("fs");
 
 // External storage configuration
-const UPLOAD_ROOT = process.env.UPLOAD_ROOT || "uploads";
-const MATERIALS_DIR = path.join(UPLOAD_ROOT, "materials");
-const PROFILES_DIR = path.join(UPLOAD_ROOT, "profiles");
+const MATERIALS_DIR = process.env.UPLOAD_ROOT || path.join("uploads", "materials");
+const PROFILES_DIR = process.env.PROFILE_ROOT || path.join("uploads", "profiles");
 
 // Ensure directories exist
 const uploadDirs = [MATERIALS_DIR, PROFILES_DIR];
@@ -71,10 +70,10 @@ const excelFilter = (req, file, cb) => {
 };
 
 // Storage configuration logic
-const storage = (subDir) =>
+const storage = (targetDir) =>
   multer.diskStorage({
     destination: function (req, file, cb) {
-      cb(null, path.join(UPLOAD_ROOT, subDir));
+      cb(null, targetDir);
     },
     filename: function (req, file, cb) {
       const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -88,7 +87,7 @@ const storage = (subDir) =>
 
 // For actual material PDF files
 const materialUpload = multer({
-  storage: storage("materials"),
+  storage: storage(MATERIALS_DIR),
   fileFilter: pdfFilter,
   limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
 });
@@ -101,7 +100,7 @@ const excelUpload = multer({
 });
 
 const profileUpload = multer({
-  storage: storage("profiles"),
+  storage: storage(PROFILES_DIR),
   fileFilter: fileFilter,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
