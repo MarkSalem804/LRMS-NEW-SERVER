@@ -482,8 +482,15 @@ lrmsRouter.get("/view-material/:materialId", async (req, res) => {
     ];
 
     // Add CORS headers - embed/iframe needs CORS even for same-host different-port
-    if (!origin || allowedOrigins.includes(origin)) {
-      res.setHeader("Access-Control-Allow-Origin", origin || "*");
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+    } else if (!origin) {
+      // For same-origin requests (where Origin header is often omitted by browsers),
+      // we can set the origin to the host, or simply omit CORS headers.
+      res.setHeader("Access-Control-Allow-Origin", `https://${req.headers.host}`);
       res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type");
       res.setHeader("Access-Control-Allow-Credentials", "true");
